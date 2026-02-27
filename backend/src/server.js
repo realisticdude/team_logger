@@ -4,6 +4,8 @@ dotenv.config();   // MUST be first
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import bcrypt from 'bcrypt';
+
 import { supabase } from './config/supabase.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
@@ -15,6 +17,7 @@ console.log("URL:", process.env.SUPABASE_URL);
 console.log("KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "Loaded" : "Missing");
 
 const app = express();
+
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('combined'));
@@ -29,33 +32,56 @@ app.get('/', (req, res) => {
   res.send('Team Logger Backend Running');
 });
 
+/*
+  TEMPORARY ADMIN SEED ROUTE
+  Remove after first successful admin creation
+*/
 app.get('/api/create-admin', async (req, res) => {
   try {
     console.log("Create admin route hit");
-    console.log("Supabase client defined:", !!supabase);
+
+    // Check if admin already exists
+    const { data: existing } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', 'admin@teamlogger.com')
+      .single();
+
+    if (existing) {
+      return res.json({ message: 'Admin already exists' });
+    }
+
+    // Hash password properly
+    const hashedPassword = await bcrypt.hash('123456', 10);
+
     const { data, error } = await supabase
       .from('users')
       .insert([
         {
           name: 'Admin',
           email: 'admin@teamlogger.com',
-          password_hash: '123456'
+          password_hash: hashedPassword
         }
       ])
+      .select();
 
-    console.log("Insert result:", { data, error });
-    if (error) return res.json(error);
+    if (error) {
+      console.error(error);
+      return res.status(500).json(error);
+    }
 
-    res.json({ message: 'Admin created', data });
+    res.json({ message: 'Admin created successfully', data });
+
   } catch (err) {
     console.error("Create admin error:", err);
-    res.json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
-})
+});
 
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => {
-  process.stdout.write(`Server listening on port ${PORT}\n`);
+  console.log(`Server listening on port ${PORT}`);
 });
 
 scheduleCleanup();
