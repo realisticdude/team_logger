@@ -11,11 +11,6 @@ import screenshotRoutes from './routes/screenshots.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { scheduleCleanup } from './tasks/cleanup.js';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
 console.log("URL:", process.env.SUPABASE_URL);
 console.log("KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "Loaded" : "Missing");
 
@@ -36,6 +31,8 @@ app.get('/', (req, res) => {
 
 app.get('/create-admin', async (req, res) => {
   try {
+    console.log("Create admin route hit");
+    console.log("Supabase client defined:", !!supabase);
     const { data, error } = await supabase
       .from('users')
       .insert([
@@ -46,11 +43,13 @@ app.get('/create-admin', async (req, res) => {
         }
       ])
 
-    if (error) return res.json(error)
+    console.log("Insert result:", { data, error });
+    if (error) return res.json(error);
 
-    res.json({ message: 'Admin created', data })
+    res.json({ message: 'Admin created', data });
   } catch (err) {
-    res.json({ error: err.message })
+    console.error("Create admin error:", err);
+    res.json({ error: err.message });
   }
 })
 
