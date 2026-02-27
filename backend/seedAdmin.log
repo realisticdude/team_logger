@@ -1,0 +1,24 @@
+[2026-02-27T04:41:29.570Z] INFO Seeder: Supabase URL: https://jsnulpbadftqhmukslbr.supabase.co
+[2026-02-27T04:41:29.713Z] INFO Seeder: Service key detected: YES
+[2026-02-27T04:41:29.715Z] INFO Seeder: Service key (masked): sb_sec...pDgx
+[2026-02-27T04:41:29.716Z] INFO Seeder: Testing connection with a simple select...
+[2026-02-27T04:41:40.439Z] ERROR Seeder: Connection test failed: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n    at node:internal/deps/undici/undici:15482:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async main (file:///D:/Checkout%20Team%20Logger/backend/src/utils/seedAdmin.js:40:50)","hint":"","code":""}
+[2026-02-27T04:41:40.441Z] INFO Seeder: Checking if admin exists...
+[2026-02-27T04:41:51.179Z] ERROR Error checking admin: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n    at node:internal/deps/undici/undici:15482:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async main (file:///D:/Checkout%20Team%20Logger/backend/src/utils/seedAdmin.js:51:52)","hint":"","code":""}
+[2026-02-27T04:41:51.180Z] ERROR Error creating admin: TypeError: fetch failed
+[2026-02-27T04:45:01.327Z] INFO Seeder: Supabase URL: https://jsnulpbadftqhmukslbr.supabase.co
+[2026-02-27T04:45:01.329Z] INFO Seeder: Service key detected: YES
+[2026-02-27T04:45:01.329Z] INFO Seeder: Service key (masked): sb_sec...pDgx
+[2026-02-27T04:45:01.330Z] INFO Seeder: Testing connection with a simple select...
+[2026-02-27T04:45:12.037Z] ERROR Seeder: Connection test failed: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n    at node:internal/deps/undici/undici:15482:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async main (file:///D:/Checkout%20Team%20Logger/backend/src/utils/seedAdmin.js:40:50)","hint":"","code":""}
+[2026-02-27T04:45:12.039Z] INFO Seeder: Checking if admin exists...
+[2026-02-27T04:45:22.658Z] ERROR Error checking admin: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n    at node:internal/deps/undici/undici:15482:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async main (file:///D:/Checkout%20Team%20Logger/backend/src/utils/seedAdmin.js:51:52)","hint":"","code":""}
+[2026-02-27T04:45:22.660Z] ERROR Error creating admin: TypeError: fetch failed
+[2026-02-27T04:45:43.273Z] INFO Seeder: Supabase URL: https://jsnulpbadftqhmukslbr.supabase.co
+[2026-02-27T04:45:43.274Z] INFO Seeder: Service key detected: YES
+[2026-02-27T04:45:43.275Z] INFO Seeder: Service key (masked): sb_sec...pDgx
+[2026-02-27T04:45:43.275Z] INFO Seeder: Testing connection with a simple select...
+[2026-02-27T04:45:54.030Z] ERROR Seeder: Connection test failed: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n    at node:internal/deps/undici/undici:15482:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async main (file:///D:/Checkout%20Team%20Logger/backend/src/utils/seedAdmin.js:40:50)","hint":"","code":""}
+[2026-02-27T04:45:54.032Z] INFO Seeder: Checking if admin exists...
+[2026-02-27T04:46:04.672Z] ERROR Error checking admin: {"message":"TypeError: fetch failed","details":"TypeError: fetch failed\n    at node:internal/deps/undici/undici:15482:13\n    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)\n    at async main (file:///D:/Checkout%20Team%20Logger/backend/src/utils/seedAdmin.js:51:52)","hint":"","code":""}
+[2026-02-27T04:46:04.674Z] ERROR Error creating admin: TypeError: fetch failed
