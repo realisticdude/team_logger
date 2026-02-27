@@ -4,7 +4,7 @@ dotenv.config();   // MUST be first
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './config/supabase.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import screenshotRoutes from './routes/screenshots.js';
