@@ -4,11 +4,17 @@ dotenv.config();   // MUST be first
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import { createClient } from '@supabase/supabase-js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import screenshotRoutes from './routes/screenshots.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { scheduleCleanup } from './tasks/cleanup.js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 console.log("URL:", process.env.SUPABASE_URL);
 console.log("KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "Loaded" : "Missing");
