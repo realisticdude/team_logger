@@ -29,7 +29,7 @@ app.get('/', (req, res) => {
   res.send('Team Logger Backend Running');
 });
 
-app.get('/create-admin', async (req, res) => {
+app.get('/api/create-admin', async (req, res) => {
   try {
     console.log("Create admin route hit");
     console.log("Supabase client defined:", !!supabase);
