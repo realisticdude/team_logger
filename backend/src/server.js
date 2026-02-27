@@ -28,6 +28,26 @@ app.get('/', (req, res) => {
   res.send('Team Logger Backend Running');
 });
 
+app.get('/create-admin', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .insert([
+        {
+          name: 'Admin',
+          email: 'admin@teamlogger.com',
+          password_hash: '123456'
+        }
+      ])
+
+    if (error) return res.json(error)
+
+    res.json({ message: 'Admin created', data })
+  } catch (err) {
+    res.json({ error: err.message })
+  }
+})
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   process.stdout.write(`Server listening on port ${PORT}\n`);
