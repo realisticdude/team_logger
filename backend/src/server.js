@@ -78,6 +78,32 @@ app.get('/api/create-admin', async (req, res) => {
   }
 });
 
+app.get('/api/create-user', async (req, res) => {
+  try {
+    const bcrypt = (await import('bcrypt')).default;
+
+    const hashed = await bcrypt.hash('user123', 10);
+
+    const { data, error } = await supabase
+      .from('users')
+      .insert([
+        {
+          name: 'Demo User',
+          email: 'user@teamlogger.com',
+          password_hash: hashed,
+          role: 'user'
+        }
+      ])
+      .select();
+
+    if (error) return res.json(error);
+
+    res.json({ message: 'User created', data });
+  } catch (err) {
+    res.json({ error: err.message });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
