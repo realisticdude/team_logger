@@ -22,18 +22,26 @@ export function AuthProvider({ children }) {
   }, [user]);
 
   const login = async (email, password, role) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const mockUser = MOCK_USERS[role];
-    if (mockUser.email === email && mockUser.password === password) {
-      setUser({
-        email: mockUser.email,
-        role: mockUser.role,
-        name: mockUser.name,
-        userId: mockUser.userId,
+    try {
+      const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
+      const res = await fetch(`${baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
       });
+      if (!res.ok) {
+        return false;
+      }
+      const data = await res.json();
+      if (!data?.token || !data?.user) {
+        return false;
+      }
+      localStorage.setItem('team-logger-token', data.token);
+      setUser(data.user);
       return true;
+    } catch {
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
