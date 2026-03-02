@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Clock, Activity, Calendar } from 'lucide-react';
-import { mockUsers, generateActivityTimeline, generateScreenshots, formatTime } from '../services/api.js';
+import { formatTime } from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 
@@ -8,12 +8,9 @@ export default function UserDashboard() {
   const { user: authUser } = useAuth();
   const [timeFilter, setTimeFilter] = useState('today');
 
-  const user = mockUsers.find((u) => u.id === authUser?.userId);
-  const activityTimeline = useMemo(() => (user ? generateActivityTimeline(user.id) : []), [user]);
-  const screenshots = useMemo(() => {
-    if (!user) return [];
-    return generateScreenshots(user.id, timeFilter === 'week' ? 7 : 1);
-  }, [user, timeFilter]);
+  const user = null;
+  const activityTimeline = [];
+  const screenshots = [];
 
   const isActive = user?.status === 'active';
 

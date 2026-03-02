@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Search, UserPlus, Trash2, AlertCircle } from 'lucide-react';
-import { mockUsers, formatTime, type User } from '../data/mockData';
+import { formatTime, type User } from '../data/mockData';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import {
@@ -25,7 +25,7 @@ import {
 } from './ui/alert-dialog';
 
 export function Dashboard() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
