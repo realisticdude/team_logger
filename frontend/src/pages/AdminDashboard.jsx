@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { Link } from 'react-router';
 import { Search, UserPlus, Trash2, AlertCircle } from 'lucide-react';
-import { mockUsers, formatTime } from '../services/api.js';
+import { formatTime } from '../services/api.js';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '../components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -25,12 +26,48 @@ import {
 } from '../components/ui/alert-dialog';
 
 export default function AdminDashboard() {
-  const [users, setUsers] = useState(mockUsers);
+  const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState('user');
   const [deleteUserId, setDeleteUserId] = useState(null);
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
+        const token = localStorage.getItem('team-logger-token') || localStorage.getItem('token') || '';
+        const res = await fetch(`${baseUrl}/api/users`, {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const mapped = Array.isArray(data)
+          ? data.map((u) => ({
+              id: u.id,
+              name: u.name || '',
+              email: u.email || '',
+              status: 'offline',
+              todayTime: 0,
+              productivity: 0,
+              avatar: (u.name || '')
+                .split(' ')
+                .filter(Boolean)
+                .map((n) => n[0])
+                .join('')
+                .toUpperCase(),
+            }))
+          : [];
+        setUsers(mapped);
+      } catch {}
+    };
+    loadUsers();
+  }, []);
 
   const filteredUsers = users.filter(
     (user) =>
@@ -38,27 +75,74 @@ export default function AdminDashboard() {
       user.email.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleAddUser = () => {
-    if (newUserName.trim() && newUserEmail.trim()) {
-      const newUser = {
-        id: Date.now().toString(),
-        name: newUserName,
-        email: newUserEmail,
-        status: 'offline',
-        todayTime: 0,
-        productivity: 0,
-        avatar: newUserName.split(' ').map((n) => n[0]).join('').toUpperCase(),
+  const handleAddUser = async () => {
+    if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim() || !newUserRole.trim()) return;
+    try {
+      const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
+      const token = localStorage.getItem('team-logger-token') || localStorage.getItem('token') || '';
+      const body = {
+        name: newUserName.trim(),
+        email: newUserEmail.trim(),
+        password: newUserPassword.trim(),
+        role: newUserRole.trim(),
       };
-      setUsers([...users, newUser]);
+      const res = await fetch(`${baseUrl}/api/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        console.error('Add user failed', res.status);
+        return;
+      }
+      const created = await res.json();
+      const avatar = newUserName.split(' ').map((n) => n[0]).join('').toUpperCase();
+      setUsers([
+        ...users,
+        {
+          id: created.id || Date.now().toString(),
+          name: created.name || newUserName,
+          email: created.email || newUserEmail,
+          status: 'offline',
+          todayTime: 0,
+          productivity: 0,
+          avatar,
+        },
+      ]);
       setNewUserName('');
       setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserRole('user');
       setIsAddDialogOpen(false);
+    } catch (e) {
+      console.error('Add user error', e);
     }
   };
 
-  const handleDeleteUser = () => {
-    if (deleteUserId) {
+  const handleDeleteUser = async () => {
+    if (!deleteUserId) return;
+    try {
+      const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
+      const token = localStorage.getItem('team-logger-token') || localStorage.getItem('token') || '';
+      const res = await fetch(`${baseUrl}/api/users/${deleteUserId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) {
+        console.error('Delete user failed', res.status);
+        setDeleteUserId(null);
+        return;
+      }
       setUsers(users.filter((user) => user.id !== deleteUserId));
+      setDeleteUserId(null);
+    } catch (e) {
+      console.error('Delete user error', e);
       setDeleteUserId(null);
     }
   };
@@ -139,13 +223,35 @@ export default function AdminDashboard() {
                   />
                 </div>
               </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Password</label>
+                <Input
+                  type="password"
+                  placeholder="Enter a password"
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  className="dark:bg-gray-900 dark:border-gray-700 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Role</label>
+                <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v)}>
+                  <SelectTrigger className="dark:bg-gray-900 dark:border-gray-700 dark:text-white">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent className="dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                    <SelectItem value="user">user</SelectItem>
+                    <SelectItem value="admin">admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto dark:border-gray-700 dark:text-gray-300">
                   Cancel
                 </Button>
                 <Button
                   onClick={handleAddUser}
-                  disabled={!newUserName.trim() || !newUserEmail.trim() || users.length >= 50}
+                  disabled={!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim() || !newUserRole.trim() || users.length >= 50}
                   className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Add User
