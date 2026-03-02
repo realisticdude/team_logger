@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Clock, Activity, Calendar } from 'lucide-react';
-import { mockUsers, generateActivityTimeline, generateScreenshots, formatTime } from '../data/mockData';
+import { formatTime } from '../data/mockData';
 import { useAuth } from '../contexts/AuthContext';
 import { Tabs, TabsList, TabsTrigger } from './ui/tabs';
 
@@ -8,24 +8,9 @@ export function UserDashboard() {
   const { user: authUser } = useAuth();
   const [timeFilter, setTimeFilter] = useState<'today' | 'week'>('today');
   
-  // Get the current user's data
-  const user = mockUsers.find(u => u.id === authUser?.userId);
-  const activityTimeline = useMemo(() => user ? generateActivityTimeline(user.id) : [], [user]);
-  const screenshots = useMemo(() => {
-    if (!user) return [];
-    return generateScreenshots(user.id, timeFilter === 'week' ? 7 : 1);
-  }, [user, timeFilter]);
-
-  if (!user) {
-    return (
-      <div className="p-4 md:p-6 lg:p-8">
-        <div className="text-center py-12">
-          <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white mb-2">User data not found</h2>
-          <p className="text-gray-500 dark:text-gray-400">Unable to load your dashboard information.</p>
-        </div>
-      </div>
-    );
-  }
+  const user = null;
+  const activityTimeline: Array<{ time: string; status: 'active' | 'idle'; duration: number }> = [];
+  const screenshots: Array<{ id: string; imageUrl: string; timestamp: Date }> = [];
 
   // Calculate activity stats
   const activeTime = activityTimeline
@@ -34,6 +19,7 @@ export function UserDashboard() {
   const idleTime = activityTimeline
     .filter(s => s.status === 'idle')
     .reduce((sum, s) => sum + s.duration, 0);
+  const isActive = false;
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
@@ -48,26 +34,26 @@ export function UserDashboard() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg md:text-xl font-medium flex-shrink-0">
-              {user.avatar}
+              {'?'}
             </div>
             <div>
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white">{user.name}</h2>
-              <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">{user.email}</p>
+              <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white">{'Unknown User'}</h2>
+              <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">{'—'}</p>
             </div>
           </div>
           <span
             className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-full font-medium text-sm ${
-              user.status === 'active'
+              isActive
                 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                 : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
             }`}
           >
             <span
               className={`w-2 md:w-2.5 h-2 md:h-2.5 rounded-full ${
-                user.status === 'active' ? 'bg-green-500 dark:bg-green-400' : 'bg-gray-400 dark:bg-gray-500'
+                isActive ? 'bg-green-500 dark:bg-green-400' : 'bg-gray-400 dark:bg-gray-500'
               }`}
             />
-            {user.status === 'active' ? 'Active Now' : 'Offline'}
+            {isActive ? 'Active Now' : 'Offline'}
           </span>
         </div>
 
@@ -81,7 +67,7 @@ export function UserDashboard() {
               <p className="text-sm text-gray-500 dark:text-gray-400">Time Today</p>
             </div>
             <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">
-              {user.todayTime > 0 ? formatTime(user.todayTime) : '0h 0m'}
+              {'0h 0m'}
             </p>
           </div>
 
@@ -93,17 +79,17 @@ export function UserDashboard() {
               <p className="text-sm text-gray-500 dark:text-gray-400">Productivity</p>
             </div>
             <div className="flex items-baseline gap-2">
-              <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{user.productivity}%</p>
+              <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{0}%</p>
               <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden max-w-[80px]">
                 <div
                   className={`h-full rounded-full ${
-                    user.productivity >= 80
+                    0 >= 80
                       ? 'bg-green-500 dark:bg-green-400'
-                      : user.productivity >= 60
+                      : 0 >= 60
                       ? 'bg-yellow-500 dark:bg-yellow-400'
                       : 'bg-red-500 dark:bg-red-400'
                   }`}
-                  style={{ width: `${user.productivity}%` }}
+                  style={{ width: `${0}%` }}
                 />
               </div>
             </div>
@@ -116,15 +102,13 @@ export function UserDashboard() {
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Screenshots</p>
             </div>
-            <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">
-              {screenshots.length}
-            </p>
+            <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">0</p>
           </div>
         </div>
       </div>
 
       {/* Activity Timeline */}
-      {user.status === 'active' && (
+      {true && (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 mb-6 md:mb-8">
           <h2 className="text-base md:text-lg font-semibold text-gray-900 dark:text-white mb-4">Today's Activity Timeline</h2>
           
