@@ -10,6 +10,7 @@ import { supabase } from './config/supabase.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import screenshotRoutes from './routes/screenshots.js';
+import activityRoutes from './routes/activity.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { scheduleCleanup } from './tasks/cleanup.js';
 
@@ -25,6 +26,7 @@ app.use(morgan('combined'));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/screenshots', screenshotRoutes);
+app.use('/api/activity', activityRoutes);
 
 app.use(errorHandler);
 
