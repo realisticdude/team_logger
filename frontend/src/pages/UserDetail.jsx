@@ -28,23 +28,16 @@ export default function UserDetail() {
         const data = await res.json();
         setUser(data || null);
 
-        const fetchMetrics = async () => {
-          const r = await fetch(`${baseUrl}/api/users/${userId}/metrics`, {
-            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          });
-          if (r.ok) {
-            const d = await r.json();
-            setMetrics(d || { todayTime: 0, productivity: 0, screenshotsCount: 0 });
-          }
-        };
+
 
         const fetchActivity = async () => {
-          const r = await fetch(`${baseUrl}/api/users/${userId}/activity`, {
+          const r = await fetch(`${baseUrl}/api/activity/${userId}/today`, {
             headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           });
           if (r.ok) {
             const d = await r.json();
-            setActivity(Array.isArray(d) ? d : []);
+            setMetrics({ todayTime: d.timeTracked, productivity: d.productivity, screenshotsCount: metrics.screenshotsCount });
+            setActivity(Array.isArray(d.timeline) ? d.timeline : []);
           }
         };
 
@@ -58,7 +51,6 @@ export default function UserDetail() {
           }
         };
 
-        fetchMetrics();
         fetchActivity();
         fetchScreenshots();
       } catch {}
