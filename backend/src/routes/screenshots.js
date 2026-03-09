@@ -5,9 +5,9 @@ import { uploadToStorage, saveMetadata, listScreenshotsByUser } from '../service
 
 const router = Router();
 
-router.post('/upload', authenticate, requireRole('user'), upload.single('image'), async (req, res, next) => {
+router.post('/upload', authenticate, requireRole('user'), upload.single('screenshot'), async (req, res, next) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'No file' });
+    if (!req.file) return res.status(400).json({ error: 'No file received' });
     const { buffer, mimetype } = req.file;
     const { path, publicUrl } = await uploadToStorage(req.user.sub, buffer, mimetype);
     const saved = await saveMetadata(req.user.sub, publicUrl, new Date().toISOString());
