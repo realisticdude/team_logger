@@ -51,4 +51,29 @@ router.delete('/:id', authenticate, requireRole('admin'), async (req, res, next)
   }
 });
 
+router.get('/:id/metrics', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (req.user.role !== 'admin' && req.user.sub !== id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const metrics = { todayTime: 0, productivity: 0, screenshotsCount: 0 };
+    res.json(metrics);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/:id/activity', authenticate, async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (req.user.role !== 'admin' && req.user.sub !== id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    res.json([]);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
 import { ArrowLeft, Clock, Activity, Calendar } from 'lucide-react';
-import { generateActivityTimeline, generateScreenshots, formatTime } from '../services/api.js';
+import { formatTime } from '../services/api.js';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 
@@ -9,6 +9,9 @@ export default function UserDetail() {
   const { userId } = useParams();
   const [timeFilter, setTimeFilter] = useState('today');
   const [user, setUser] = useState(null);
+  const [metrics, setMetrics] = useState({ todayTime: 0, productivity: 0, screenshotsCount: 0 });
+  const [activity, setActivity] = useState([]);
+  const [screenshots, setScreenshots] = useState([]);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -23,21 +26,49 @@ export default function UserDetail() {
         if (!res.ok) return;
         const data = await res.json();
         setUser(data || null);
+
+        const fetchMetrics = async () => {
+          const r = await fetch(`${baseUrl}/api/users/${userId}/metrics`, {
+            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          });
+          if (r.ok) {
+            const d = await r.json();
+            setMetrics(d || { todayTime: 0, productivity: 0, screenshotsCount: 0 });
+          }
+        };
+
+        const fetchActivity = async () => {
+          const r = await fetch(`${baseUrl}/api/users/${userId}/activity`, {
+            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          });
+          if (r.ok) {
+            const d = await r.json();
+            setActivity(Array.isArray(d) ? d : []);
+          }
+        };
+
+        const fetchScreenshots = async () => {
+          const r = await fetch(`${baseUrl}/api/screenshots/user/${userId}`, {
+            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          });
+          if (r.ok) {
+            const d = await r.json();
+            setScreenshots(Array.isArray(d) ? d : []);
+          }
+        };
+
+        fetchMetrics();
+        fetchActivity();
+        fetchScreenshots();
       } catch {}
     };
     loadUser();
   }, [userId]);
 
-  const activityTimeline = useMemo(() => (user ? generateActivityTimeline(user.id) : []), [user]);
-  const screenshots = useMemo(() => {
-    if (!user) return [];
-    return generateScreenshots(user.id, timeFilter === 'week' ? 7 : 1);
-  }, [user, timeFilter]);
-
   const isActive = user?.status === 'active';
 
-  const activeTime = activityTimeline.filter((s) => s.status === 'active').reduce((sum, s) => sum + s.duration, 0);
-  const idleTime = activityTimeline.filter((s) => s.status === 'idle').reduce((sum, s) => sum + s.duration, 0);
+  const activeTime = activity.filter((s) => s.status === 'active').reduce((sum, s) => sum + (s.duration || 0), 0);
+  const idleTime = activity.filter((s) => s.status === 'idle').reduce((sum, s) => sum + (s.duration || 0), 0);
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
@@ -85,7 +116,7 @@ export default function UserDetail() {
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">Time Tracked Today</p>
           </div>
-          <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{formatTime(user?.todayTime ?? 0)}</p>
+          <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{formatTime(metrics.todayTime || 0)}</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
@@ -96,13 +127,13 @@ export default function UserDetail() {
             <p className="text-sm text-gray-500 dark:text-gray-400">Productivity</p>
           </div>
           <div className="flex items-baseline gap-2">
-            <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{(user?.productivity ?? 0)}%</p>
+            <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{(metrics.productivity || 0)}%</p>
             <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden max-w-[120px]">
               <div
                 className={`h-full rounded-full ${
-                  (user?.productivity ?? 0) >= 80 ? 'bg-green-500 dark:bg-green-400' : (user?.productivity ?? 0) >= 60 ? 'bg-yellow-500 dark:bg-yellow-400' : 'bg-red-500 dark:bg-red-400'
+                  (metrics.productivity || 0) >= 80 ? 'bg-green-500 dark:bg-green-400' : (metrics.productivity || 0) >= 60 ? 'bg-yellow-500 dark:bg-yellow-400' : 'bg-red-500 dark:bg-red-400'
                 }`}
-                style={{ width: `${(user?.productivity ?? 0)}%` }}
+                style={{ width: `${(metrics.productivity || 0)}%` }}
               />
             </div>
           </div>
@@ -134,7 +165,7 @@ export default function UserDetail() {
           </div>
         </div>
 
-        {activityTimeline.length === 0 ? (
+        {activity.length === 0 ? (
           <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 text-sm text-gray-600 dark:text-gray-400">
             No activity yet
           </div>
@@ -147,20 +178,21 @@ export default function UserDetail() {
             </div>
 
             <div className="relative h-10 md:h-12 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
-              {activityTimeline.map((segment, index) => {
-                const startMinutes = parseInt(segment.time.split(':')[0]) * 60 + parseInt(segment.time.split(':')[1]);
+              {activity.map((segment, index) => {
+                const timeStr = segment.time || '09:00';
+                const startMinutes = parseInt(timeStr.split(':')[0]) * 60 + parseInt(timeStr.split(':')[1]);
                 const dayStart = 9 * 60;
                 const dayEnd = 17 * 60;
                 const dayDuration = dayEnd - dayStart;
                 const left = ((startMinutes - dayStart) / dayDuration) * 100;
-                const width = (segment.duration / dayDuration) * 100;
+                const width = ((segment.duration || 0) / dayDuration) * 100;
 
                 return (
                   <div
                     key={index}
                     className={`absolute top-0 h-full ${segment.status === 'active' ? 'bg-green-500 dark:bg-green-400' : 'bg-red-400 dark:bg-red-500'}`}
                     style={{ left: `${Math.max(0, left)}%`, width: `${Math.min(100 - left, width)}%` }}
-                    title={`${segment.time} - ${segment.status} (${segment.duration}m)`}
+                    title={`${timeStr} - ${segment.status} (${segment.duration || 0}m)`}
                   />
                 );
               })}
