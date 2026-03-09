@@ -63,6 +63,7 @@ const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
+
       { path: '*', Component: NotFound },
     ],
   },

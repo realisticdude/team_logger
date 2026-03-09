@@ -15,15 +15,13 @@ const captureAndUpload = async () => {
     return;
   }
 
-  try {
-    const filename = `screenshot-${Date.now()}.png`;
-    const filepath = path.join(__dirname, filename);
+  const filename = `screenshot-${Date.now()}.png`;
+  const filepath = path.join(__dirname, filename);
 
+  try {
     console.log("Capturing screenshot:", filepath);
-    // Capture screenshot
     await screenshot({ filename: filepath });
 
-    // Upload to backend
     const form = new FormData();
     form.append('screenshot', fs.createReadStream(filepath));
 
@@ -39,26 +37,31 @@ const captureAndUpload = async () => {
     });
 
     console.log('Upload success:', response.data);
-
-    // Delete local temporary file
-    fs.unlinkSync(filepath);
-    console.log("Local file deleted:", filepath);
   } catch (error) {
     const errorMsg = error.response?.data?.error || error.response?.data || error.message;
     console.error('Upload failed:', errorMsg);
     if (error.response) {
       console.error('Status:', error.response.status);
     }
+  } finally {
+    if (fs.existsSync(filepath)) {
+      fs.unlinkSync(filepath);
+      console.log("Local file deleted:", filepath);
+    }
   }
 };
 
 const startScreenshotService = (token) => {
+  // Always clear any existing interval before starting
+  if (screenshotInterval) {
+    clearInterval(screenshotInterval);
+    screenshotInterval = null;
+  }
+
   authToken = token;
-  if (screenshotInterval) return;
 
   console.log('Starting screenshot service (every 60s)');
-  // Capture immediately then every 60 seconds
-  captureAndUpload();
+  captureAndUpload(); // Run immediately
   screenshotInterval = setInterval(captureAndUpload, 60000);
 };
 

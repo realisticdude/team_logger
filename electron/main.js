@@ -57,26 +57,26 @@ function createWindow() {
   mainWindow.loadURL(frontendUrl);
 
   // Poll localStorage for token to start screenshot service
-  let lastToken = null;
-  const checkToken = async () => {
+  let currentToken = null;
+  setInterval(async () => {
     try {
       const token = await mainWindow.webContents.executeJavaScript('localStorage.getItem("team-logger-token")');
-      if (token && token !== lastToken) {
-        console.log('Token found in localStorage, starting screenshot service');
-        lastToken = token;
-        screenshotService.startScreenshotService(token);
-      } else if (!token && lastToken) {
-        console.log('Token removed from localStorage, stopping screenshot service');
-        lastToken = null;
-        screenshotService.stopScreenshotService();
+
+      if (token !== currentToken) {
+        console.log('Token has changed. Restarting screenshot service.');
+        currentToken = token;
+
+        if (token) {
+          screenshotService.startScreenshotService(token);
+        } else {
+          screenshotService.stopScreenshotService();
+        }
       }
     } catch (e) {
-      // In case webContents is not ready or fails
+      // This can happen if the window is closed or navigating
+      console.error('Failed to check for token:', e.message);
     }
-  };
-
-  // Check every 10 seconds if token exists or has changed
-  setInterval(checkToken, 10000);
+  }, 5000); // Check every 5 seconds
 
   // Minimize behavior: Hide to tray
   mainWindow.on('minimize', (event) => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { LayoutDashboard, Users, Settings, Menu, X, LogOut, Shield, User as UserIcon, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, Menu, X, LogOut, Shield, User as UserIcon, ChevronDown, Camera } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { Button } from '../ui/button';
 import {

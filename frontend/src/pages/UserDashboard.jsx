@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Clock, Activity, Calendar } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Clock, Activity, Calendar, Camera, AlertCircle } from 'lucide-react';
 import { formatTime } from '../services/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -7,10 +7,42 @@ import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
 export default function UserDashboard() {
   const { user: authUser } = useAuth();
   const [timeFilter, setTimeFilter] = useState('today');
+  const [screenshots, setScreenshots] = useState([]);
+  const [error, setError] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  useEffect(() => {
+    const fetchScreenshots = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_API_URL || 'https://team-logger.onrender.com';
+        const token = localStorage.getItem('team-logger-token');
+        if (!token) {
+          setError('You must be logged in to view screenshots.');
+          return;
+        }
+
+        const res = await fetch(`${baseUrl}/api/screenshots/me?days=${timeFilter === 'today' ? 1 : 7}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch screenshots. Please try again later.');
+        }
+
+        const data = await res.json();
+        setScreenshots(data);
+      } catch (err) {
+        setError(err.message);
+      }
+    };
+
+    fetchScreenshots();
+  }, [timeFilter]);
 
   const user = null;
   const activityTimeline = [];
-  const screenshots = [];
 
   const isActive = user?.status === 'active';
 
@@ -188,26 +220,39 @@ export default function UserDashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-            {screenshots.slice(0, 48).map((screenshot) => (
-              <div key={screenshot.id} className="group relative">
-                <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
-                  <img
-                    src={screenshot.imageUrl}
-                    alt={`Screenshot at ${screenshot.timestamp.toLocaleTimeString()}`}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  <p className="font-medium text-gray-700 dark:text-gray-300">
-                    {screenshot.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </p>
-                  <p>{screenshot.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
-                </div>
+          {screenshots.map((screenshot) => (
+            <div key={screenshot.id} className="group relative cursor-pointer" onClick={() => setSelectedImage(screenshot.image_url)}>
+              <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
+                <img
+                  src={screenshot.image_url}
+                  alt={`Screenshot at ${new Date(screenshot.created_at).toLocaleTimeString()}`}
+                  className="w-full h-full object-cover"
+                />
               </div>
-            ))}
-          </div>
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <p className="font-medium text-gray-700 dark:text-gray-300">
+                  {new Date(screenshot.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </p>
+                <p>{new Date(screenshot.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+              </div>
+            </div>
+          ))}
+        </div>
         )}
       </div>
+
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <img 
+            src={selectedImage} 
+            alt="Selected screenshot" 
+            className="max-w-full max-h-full rounded-lg shadow-2xl"
+          />
+        </div>
+      )}
     </div>
   );
 }
