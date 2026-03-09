@@ -12,6 +12,7 @@ export default function UserDetail() {
   const [metrics, setMetrics] = useState({ todayTime: 0, productivity: 0, screenshotsCount: 0 });
   const [activity, setActivity] = useState([]);
   const [screenshots, setScreenshots] = useState([]);
+  const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -244,22 +245,29 @@ export default function UserDetail() {
               <div key={screenshot.id} className="group relative">
                 <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
                   <img
-                    src={screenshot.imageUrl}
-                    alt={`Screenshot at ${screenshot.timestamp.toLocaleTimeString()}`}
-                    className="w-full h-full object-cover"
+                    src={screenshot.image_url}
+                    alt={`Screenshot at ${new Date(screenshot.timestamp).toLocaleTimeString()}`}
+                    className="w-full h-full object-cover cursor-pointer"
+                    onClick={() => setSelectedImage(screenshot.image_url)}
                   />
                 </div>
                 <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                   <p className="font-medium text-gray-700 dark:text-gray-300">
-                    {screenshot.timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {new Date(screenshot.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                   </p>
-                  <p>{screenshot.timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p>{new Date(screenshot.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {selectedImage && (
+        <div className="image-modal" onClick={() => setSelectedImage(null)}>
+          <img src={selectedImage} className="modal-image" />
+        </div>
+      )}
     </div>
   );
 }
