@@ -6,7 +6,7 @@ const path = require('path');
 
 let screenshotInterval = null;
 let authToken = null;
-const BACKEND_URL = process.env.VITE_API_URL || 'http://localhost:5000';
+const BACKEND_URL = 'https://team-logger.onrender.com';
 console.log('Backend URL set to:', BACKEND_URL);
 
 const captureAndUpload = async () => {
@@ -27,7 +27,10 @@ const captureAndUpload = async () => {
     const form = new FormData();
     form.append('screenshot', fs.createReadStream(filepath));
 
-    console.log("Uploading to:", `${BACKEND_URL}/api/screenshots/upload`);
+    console.log("Uploading screenshot to Render backend:");
+    console.log(`${BACKEND_URL}/api/screenshots/upload`);
+    console.log("With token:", authToken ? `${authToken.substring(0, 10)}...` : 'null');
+
     const response = await axios.post(`${BACKEND_URL}/api/screenshots/upload`, form, {
       headers: {
         ...form.getHeaders(),

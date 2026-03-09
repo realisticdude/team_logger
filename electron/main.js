@@ -57,12 +57,17 @@ function createWindow() {
   mainWindow.loadURL(frontendUrl);
 
   // Poll localStorage for token to start screenshot service
+  let lastToken = null;
   const checkToken = async () => {
     try {
       const token = await mainWindow.webContents.executeJavaScript('localStorage.getItem("team-logger-token")');
-      if (token) {
+      if (token && token !== lastToken) {
+        console.log('Token found in localStorage, starting screenshot service');
+        lastToken = token;
         screenshotService.startScreenshotService(token);
-      } else {
+      } else if (!token && lastToken) {
+        console.log('Token removed from localStorage, stopping screenshot service');
+        lastToken = null;
         screenshotService.stopScreenshotService();
       }
     } catch (e) {
