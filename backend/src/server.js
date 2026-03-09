@@ -12,7 +12,7 @@ import userRoutes from './routes/users.js';
 import screenshotRoutes from './routes/screenshots.js';
 import activityRoutes from './routes/activity.js';
 import { errorHandler } from './middleware/errorHandler.js';
-import { scheduleCleanup } from './tasks/cleanup.js';
+import { startSchedulers } from './tasks/scheduler.js';
 
 console.log("URL:", process.env.SUPABASE_URL);
 console.log("KEY:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "Loaded" : "Missing");
@@ -27,6 +27,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/screenshots', screenshotRoutes);
 app.use('/api/activity', activityRoutes);
+
+// Start scheduled tasks
+startSchedulers();
 
 app.use(errorHandler);
 
@@ -112,4 +115,3 @@ app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
 });
 
-scheduleCleanup();

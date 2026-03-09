@@ -32,4 +32,15 @@ router.get('/user/:userId', authenticate, async (req, res, next) => {
   }
 });
 
+router.get('/me', authenticate, async (req, res, next) => {
+  try {
+    const userId = req.user.sub;
+    const days = parseInt(req.query.days || '7', 10);
+    const data = await listScreenshotsByUser(userId, days);
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
