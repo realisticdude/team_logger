@@ -63,6 +63,7 @@ export const generateScreenshots = (userId, days = 1) => {
 };
 
 export const formatTime = (minutes) => {
+  if (typeof minutes !== 'number' || isNaN(minutes)) return '0h 0m';
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return `${hours}h ${mins}m`;

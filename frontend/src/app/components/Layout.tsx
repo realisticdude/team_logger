@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { LayoutDashboard, Users, Settings, Menu, X, LogOut, Shield, User as UserIcon, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,12 +11,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import { startTrackingActivity, stopTrackingActivity } from '../../services/activity';
 
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      startTrackingActivity();
+    } else {
+      stopTrackingActivity();
+    }
+
+    return () => {
+      stopTrackingActivity();
+    };
+  }, [isAuthenticated]);
 
   const isActive = (path: string) => {
     if (path === '/' && location.pathname === '/') return true;

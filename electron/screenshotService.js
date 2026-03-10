@@ -4,9 +4,13 @@ const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
 
-let screenshotInterval = null;
+let cycleTimeout = null;
+let scheduledTimeouts = [];
 let authToken = null;
 const BACKEND_URL = 'https://team-logger.onrender.com';
+const CYCLE_DURATION = 15 * 60 * 1000; // 15 minutes
+const SCREENSHOTS_PER_CYCLE = 2;
+
 console.log('Backend URL set to:', BACKEND_URL);
 
 const captureAndUpload = async () => {
@@ -51,26 +55,45 @@ const captureAndUpload = async () => {
   }
 };
 
-const startScreenshotService = (token) => {
-  // Always clear any existing interval before starting
-  if (screenshotInterval) {
-    clearInterval(screenshotInterval);
-    screenshotInterval = null;
+const scheduleRandomCycle = () => {
+  // Clear any existing timeouts in the current cycle
+  scheduledTimeouts.forEach(t => clearTimeout(t));
+  scheduledTimeouts = [];
+
+  console.log(`Starting new 15-minute cycle. Scheduling ${SCREENSHOTS_PER_CYCLE} random screenshots.`);
+
+  for (let i = 0; i < SCREENSHOTS_PER_CYCLE; i++) {
+    const randomDelay = Math.floor(Math.random() * CYCLE_DURATION);
+    console.log(`Screenshot ${i + 1} scheduled in ${Math.round(randomDelay / 1000)}s`);
+    
+    const timeout = setTimeout(captureAndUpload, randomDelay);
+    scheduledTimeouts.push(timeout);
   }
+
+  // Schedule the next cycle
+  cycleTimeout = setTimeout(scheduleRandomCycle, CYCLE_DURATION);
+};
+
+const startScreenshotService = (token) => {
+  // Always clear any existing service before starting
+  stopScreenshotService();
 
   authToken = token;
 
-  console.log('Starting screenshot service (every 60s)');
-  captureAndUpload(); // Run immediately
-  screenshotInterval = setInterval(captureAndUpload, 60000);
+  console.log('Starting screenshot service (Randomized: 2 screenshots per 15 mins)');
+  scheduleRandomCycle();
 };
 
 const stopScreenshotService = () => {
-  if (screenshotInterval) {
-    clearInterval(screenshotInterval);
-    screenshotInterval = null;
-    console.log('Screenshot service stopped');
+  if (cycleTimeout) {
+    clearTimeout(cycleTimeout);
+    cycleTimeout = null;
   }
+
+  scheduledTimeouts.forEach(t => clearTimeout(t));
+  scheduledTimeouts = [];
+  
+  console.log('Screenshot service stopped');
 };
 
 const setToken = (token) => {

@@ -1,8 +1,17 @@
 import { Router } from 'express';
 import { authenticate, requireRole } from '../middleware/auth.js';
-import { getActivityToday } from '../services/activityService.js';
+import { getActivityToday, recordHeartbeat } from '../services/activityService.js';
 
 const router = Router();
+
+router.post('/heartbeat', authenticate, async (req, res, next) => {
+  try {
+    await recordHeartbeat(req.user.sub);
+    res.status(200).json({ message: 'Heartbeat recorded' });
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get('/:userId/today', authenticate, requireRole('admin'), async (req, res, next) => {
   try {
