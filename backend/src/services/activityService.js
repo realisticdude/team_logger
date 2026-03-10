@@ -11,6 +11,19 @@ const formatTime = (minutes) => {
   return `${h}h ${m > 0 ? `${m}m` : ''}`.trim();
 };
 
+export const recordHeartbeat = async (userId) => {
+  const { error } = await supabase
+    .from('users')
+    .update({ last_seen: new Date().toISOString(), status: 'online' })
+    .eq('id', userId);
+  if (error) throw error;
+};
+
+export const updateUserStatus = async (userId, status) => {
+  const { error } = await supabase.from('users').update({ status }).eq('id', userId);
+  if (error) throw error;
+};
+
 export const getActivityToday = async (userId) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -63,7 +76,7 @@ export const getActivityToday = async (userId) => {
   }
 
   return {
-    timeTracked: formatTime(activeMinutes),
+    timeTracked: activeMinutes,
     productivity,
     timeline,
   };

@@ -41,10 +41,9 @@ export default function UserDashboard() {
     fetchScreenshots();
   }, [timeFilter]);
 
-  const user = null;
   const activityTimeline = [];
 
-  const isActive = user?.status === 'active';
+  const isActive = authUser?.status === 'active';
 
   const activeTime = activityTimeline.filter((s) => s.status === 'active').reduce((sum, s) => sum + s.duration, 0);
   const idleTime = activityTimeline.filter((s) => s.status === 'idle').reduce((sum, s) => sum + s.duration, 0);
@@ -60,11 +59,11 @@ export default function UserDashboard() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg md:text-xl font-medium flex-shrink-0">
-              {user?.avatar ?? '?'}
+              {authUser?.avatar ?? '?'}
             </div>
             <div>
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white">{user?.name ?? 'Unknown User'}</h2>
-              <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">{user?.email ?? '—'}</p>
+              <h2 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white">{authUser?.name ?? 'Unknown User'}</h2>
+              <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">{authUser?.email ?? '—'}</p>
             </div>
           </div>
           <span
@@ -92,7 +91,7 @@ export default function UserDashboard() {
               <p className="text-sm text-gray-500 dark:text-gray-400">Time Today</p>
             </div>
             <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">
-              {formatTime(user?.todayTime ?? 0)}
+              {formatTime(authUser?.todayTime ?? 0)}
             </p>
           </div>
 
@@ -104,17 +103,17 @@ export default function UserDashboard() {
               <p className="text-sm text-gray-500 dark:text-gray-400">Productivity</p>
             </div>
             <div className="flex items-baseline gap-2">
-              <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{(user?.productivity ?? 0)}%</p>
+              <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{(authUser?.productivity ?? 0)}%</p>
               <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden max-w-[80px]">
                 <div
                   className={`h-full rounded-full ${
-                    (user?.productivity ?? 0) >= 80
+                    (authUser?.productivity ?? 0) >= 80
                       ? 'bg-green-500 dark:bg-green-400'
-                      : (user?.productivity ?? 0) >= 60
+                      : (authUser?.productivity ?? 0) >= 60
                       ? 'bg-yellow-500 dark:bg-yellow-400'
                       : 'bg-red-500 dark:bg-red-400'
                   }`}
-                  style={{ width: `${(user?.productivity ?? 0)}%` }}
+                  style={{ width: `${(authUser?.productivity ?? 0)}%` }}
                 />
               </div>
             </div>
@@ -225,15 +224,15 @@ export default function UserDashboard() {
               <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
                 <img
                   src={screenshot.image_url}
-                  alt={`Screenshot at ${new Date(screenshot.created_at).toLocaleTimeString()}`}
+                  alt={`Screenshot at ${new Date(screenshot.timestamp).toLocaleTimeString()}`}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                 <p className="font-medium text-gray-700 dark:text-gray-300">
-                  {new Date(screenshot.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {new Date(screenshot.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </p>
-                <p>{new Date(screenshot.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
+                <p>{new Date(screenshot.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</p>
               </div>
             </div>
           ))}

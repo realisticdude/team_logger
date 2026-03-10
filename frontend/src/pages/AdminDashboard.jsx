@@ -52,7 +52,7 @@ export default function AdminDashboard() {
               id: u.id,
               name: u.name || '',
               email: u.email || '',
-              status: 'offline',
+              status: u.status || 'offline',
               todayTime: 0,
               productivity: 0,
               avatar: (u.name || '')
@@ -67,6 +67,9 @@ export default function AdminDashboard() {
       } catch {}
     };
     loadUsers();
+
+    const interval = setInterval(loadUsers, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredUsers = users.filter(
@@ -147,7 +150,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const activeUsers = users.filter((u) => u.status === 'active').length;
+  const onlineUsers = users.filter((u) => u.status === 'online').length;
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
@@ -164,12 +167,12 @@ export default function AdminDashboard() {
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 border border-gray-200 dark:border-gray-700">
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Active Now</p>
-          <p className="text-2xl md:text-3xl font-semibold text-green-600 dark:text-green-500">{activeUsers}</p>
+          <p className="text-2xl md:text-3xl font-semibold text-green-600 dark:text-green-500">{onlineUsers}</p>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Currently working</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 border border-gray-200 dark:border-gray-700 sm:col-span-2 lg:col-span-1">
           <p className="text-sm text-gray-500 dark:text-gray-400 mb-1">Offline</p>
-          <p className="text-2xl md:text-3xl font-semibold text-gray-400 dark:text-gray-500">{users.length - activeUsers}</p>
+          <p className="text-2xl md:text-3xl font-semibold text-gray-400 dark:text-gray-500">{users.length - onlineUsers}</p>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Not active today</p>
         </div>
       </div>
@@ -310,17 +313,19 @@ export default function AdminDashboard() {
                     <td className="px-6 py-4">
                       <span
                         className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${
-                          user.status === 'active'
+                          user.status === 'online'
                             ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                            : user.status === 'inactive'
+                            ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                         }`}
                       >
                         <span
                           className={`w-2 h-2 rounded-full ${
-                            user.status === 'active' ? 'bg-green-500 dark:bg-green-400' : 'bg-gray-400 dark:bg-gray-500'
+                            user.status === 'online' ? 'bg-green-500 dark:bg-green-400' : user.status === 'inactive' ? 'bg-yellow-500 dark:bg-yellow-400' : 'bg-gray-400 dark:bg-gray-500'
                           }`}
                         />
-                        {user.status === 'active' ? 'Active' : 'Offline'}
+                        {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -381,13 +386,15 @@ export default function AdminDashboard() {
                     </div>
                     <span
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        user.status === 'active'
+                        user.status === 'online'
                           ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                          : user.status === 'inactive'
+                          ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'active' ? 'bg-green-500' : 'bg-gray-400'}`} />
-                      {user.status === 'active' ? 'Active' : 'Offline'}
+                      <span className={`w-1.5 h-1.5 rounded-full ${user.status === 'online' ? 'bg-green-500' : user.status === 'inactive' ? 'bg-yellow-500' : 'bg-gray-400'}`} />
+                      {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
                     </span>
                   </div>
                 </Link>
