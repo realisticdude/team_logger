@@ -35,44 +35,71 @@ export default function AdminDashboard() {
   const [newUserRole, setNewUserRole] = useState('user');
   const [deleteUserId, setDeleteUserId] = useState(null);
 
+  const filteredUsers = users.filter((user) =>
+    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  
+  console.log('DEBUG: Current users state:', users);
+  console.log('DEBUG: Filtered users:', filteredUsers);
+
   useEffect(() => {
     const loadUsers = async () => {
       try {
         const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
-        const token = localStorage.getItem('team-logger-token') || localStorage.getItem('token') || '';
+        const token = localStorage.getItem('team-logger-token');
+        console.log('Fetching users from:', `${baseUrl}/api/users`);
         const res = await fetch(`${baseUrl}/api/users`, {
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         });
-        if (!res.ok) return;
+        
+        if (!res.ok) {
+          console.error('Fetch users failed:', res.status, res.statusText);
+          if (res.status === 401) {
+            console.log('Unauthorized. Clearing token and forcing re-login.');
+            localStorage.removeItem('team-logger-token');
+            window.location.reload(); // Force a reload to redirect to login
+          }
+          return;
+        }
+        
         const data = await res.json();
-        const mapped = Array.isArray(data)
-          ? data.map((u) => {
-              // Status is 'online' or 'idle' from backend, map to 'online' or 'offline' for UI
-              // If last_seen is more than 5 minutes ago, consider them offline
-              const lastSeen = u.last_seen ? new Date(u.last_seen) : null;
-              const isRecent = lastSeen && (new Date() - lastSeen) < 5 * 60 * 1000;
-              const status = isRecent ? (u.status === 'idle' ? 'idle' : 'online') : 'offline';
+        console.log('DEBUG: Raw data received from backend:', data);
+        
+        if (!Array.isArray(data)) {
+          console.error('DEBUG: Data received is not an array:', data);
+          return;
+        }
+        
+        const mapped = data.map((u) => {
+          // Status mapping logic
+          const lastSeen = u.last_seen ? new Date(u.last_seen) : null;
+          const isRecent = lastSeen && (new Date() - lastSeen) < 5 * 60 * 1000;
+          const status = isRecent ? (u.status === 'idle' ? 'idle' : 'online') : 'offline';
 
-              return {
-                id: u.id,
-                name: u.name || '',
-                email: u.email || '',
-                status,
-                todayTime: 0, // Will be fetched per user or calculated
-                productivity: 0,
-                avatar: (u.name || '')
-                  .split(' ')
-                  .filter(Boolean)
-                  .map((n) => n[0])
-                  .join('')
-                  .toUpperCase(),
-              };
-            })
-          : [];
+          return {
+            id: u.id,
+            name: u.name || 'Unknown',
+            email: u.email || 'No email',
+            status,
+            todayTime: 0,
+            productivity: 0,
+            avatar: (u.name || 'U')
+              .split(' ')
+              .filter(Boolean)
+              .map((n) => n[0])
+              .join('')
+              .toUpperCase(),
+          };
+        });
+        
+        console.log('DEBUG: Mapped users:', mapped);
         setUsers(mapped);
-      } catch {}
+      } catch (err) {
+        console.error('DEBUG: Error loading users:', err);
+      }
     };
     loadUsers();
 
@@ -83,12 +110,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchAllMetrics = async () => {
       const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
-      const token = localStorage.getItem('team-logger-token') || localStorage.getItem('token') || '';
+      const token = localStorage.getItem('team-logger-token');
       
       const updatedUsers = await Promise.all(users.map(async (u) => {
         try {
           const res = await fetch(`${baseUrl}/api/users/${u.id}/metrics`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
           });
           if (res.ok) {
             const m = await res.json();
@@ -111,7 +138,7 @@ export default function AdminDashboard() {
     if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim() || !newUserRole.trim()) return;
     try {
       const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
-      const token = localStorage.getItem('team-logger-token') || localStorage.getItem('token') || '';
+      const token = localStorage.getItem('team-logger-token');
       const body = {
         name: newUserName.trim(),
         email: newUserEmail.trim(),
@@ -130,20 +157,41 @@ export default function AdminDashboard() {
         console.error('Add user failed', res.status);
         return;
       }
-      const created = await res.json();
-      const avatar = newUserName.split(' ').map((n) => n[0]).join('').toUpperCase();
-      setUsers([
-        ...users,
-        {
-          id: created.id || Date.now().toString(),
-          name: created.name || newUserName,
-          email: created.email || newUserEmail,
-          status: 'offline',
-          todayTime: 0,
-          productivity: 0,
-          avatar,
-        },
-      ]);
+      
+      // Refresh the entire user list from the backend to ensure data consistency
+      const loadUsers = async () => {
+        try {
+          const res = await fetch(`${baseUrl}/api/users`, {
+            headers: {
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              const mapped = data.map((u) => {
+                const lastSeen = u.last_seen ? new Date(u.last_seen) : null;
+                const isRecent = lastSeen && (new Date() - lastSeen) < 5 * 60 * 1000;
+                const status = isRecent ? (u.status === 'idle' ? 'idle' : 'online') : 'offline';
+                return {
+                  id: u.id,
+                  name: u.name || 'Unknown',
+                  email: u.email || 'No email',
+                  status,
+                  todayTime: 0,
+                  productivity: 0,
+                  avatar: (u.name || 'U').split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase(),
+                };
+              });
+              setUsers(mapped);
+            }
+          }
+        } catch (err) {
+          console.error('Error refreshing users after add:', err);
+        }
+      };
+      await loadUsers();
+
       setNewUserName('');
       setNewUserEmail('');
       setNewUserPassword('');
@@ -158,7 +206,7 @@ export default function AdminDashboard() {
     if (!deleteUserId) return;
     try {
       const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
-      const token = localStorage.getItem('team-logger-token') || localStorage.getItem('token') || '';
+      const token = localStorage.getItem('team-logger-token');
       const res = await fetch(`${baseUrl}/api/users/${deleteUserId}`, {
         method: 'DELETE',
         headers: {

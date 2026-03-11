@@ -18,7 +18,7 @@ export default function UserDetail() {
     const loadUser = async () => {
       try {
         const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
-        const token = localStorage.getItem('team-logger-token') || localStorage.getItem('token') || '';
+        const token = localStorage.getItem('team-logger-token');
         const res = await fetch(`${baseUrl}/api/users/${userId}`, {
           headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
