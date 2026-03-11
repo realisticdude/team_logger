@@ -33,7 +33,6 @@ export default function Layout() {
 
   const adminNavItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard', exact: true },
-    { path: '/', icon: Users, label: 'Users', highlight: location.pathname.startsWith('/user/') },
     { path: '/settings', icon: Settings, label: 'Settings', exact: false },
   ];
 
