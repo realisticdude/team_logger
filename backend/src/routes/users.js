@@ -7,17 +7,23 @@ const router = Router();
 
 router.get('/', authenticate, requireRole('admin'), async (req, res, next) => {
   try {
+    console.log('API HIT: GET /api/users');
+    console.log('Request user role:', req.user.role);
+
     const { data, error } = await supabase
       .from('users')
-      .select('id,email,name,role,status,last_seen')
+      .select('*')
       .order('name', { ascending: true });
-    if (error) throw error;
-    
-    // For each user, we could calculate metrics, but to keep it fast, 
-    // we'll return the base data and let the frontend fetch details if needed.
-    // However, for the dashboard list, we can add a placeholder or simple metrics.
-    res.json(data);
+
+    if (error) {
+      console.error('Supabase query error:', error);
+      return res.status(500).json({ error: 'Failed to fetch users from database.', details: error.message });
+    }
+
+    console.log('Users fetched from Supabase:', data);
+    res.json(data || []);
   } catch (err) {
+    console.error('Error in /api/users route:', err);
     next(err);
   }
 });
