@@ -201,31 +201,52 @@ export default function UserDashboard() {
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="flex text-xs text-gray-400 dark:text-gray-500 mb-1">
-              <span className="w-12 md:w-16">9:00</span>
-              <span className="flex-1 text-center">12:00</span>
-              <span className="w-12 md:w-16 text-right">17:00</span>
-            </div>
+            {(() => {
+              const getMinutes = (timeStr) => {
+                const [h, m] = timeStr.split(':').map(Number);
+                return h * 60 + m;
+              };
 
-            <div className="relative h-10 md:h-12 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
-              {activityTimeline.map((segment, index) => {
-                const startMinutes = parseInt(segment.time.split(':')[0]) * 60 + parseInt(segment.time.split(':')[1]);
-                const dayStart = 9 * 60;
-                const dayEnd = 17 * 60;
-                const dayDuration = dayEnd - dayStart;
-                const left = ((startMinutes - dayStart) / dayDuration) * 100;
-                const width = (segment.duration / dayDuration) * 100;
+              // Determine the range based on actual activity
+              const activityMinutes = activityTimeline.map(s => getMinutes(s.time || '00:00'));
+              const minMinutes = Math.min(...activityMinutes);
+              const lastSegment = activityTimeline[activityTimeline.length - 1];
+              const maxMinutes = getMinutes(lastSegment.time || '00:00') + (lastSegment.duration || 0);
+              
+              const rangeDuration = maxMinutes - minMinutes;
+              const startTimeStr = activityTimeline[0].time;
+              const endTimeStr = `${Math.floor(maxMinutes / 60).toString().padStart(2, '0')}:${(maxMinutes % 60).toString().padStart(2, '0')}`;
 
-                return (
-                  <div
-                    key={index}
-                    className={`absolute top-0 h-full ${segment.status === 'active' ? 'bg-green-500 dark:bg-green-400' : 'bg-red-400 dark:bg-red-500'}`}
-                    style={{ left: `${Math.max(0, left)}%`, width: `${Math.min(100 - left, width)}%` }}
-                    title={`${segment.time} - ${segment.status} (${segment.duration}m)`}
-                  />
-                );
-              })}
-            </div>
+              return (
+                <>
+                  <div className="flex text-xs text-gray-400 dark:text-gray-500 mb-1">
+                    <span className="w-12 md:w-16">{startTimeStr}</span>
+                    <span className="flex-1 text-center">Activity Range</span>
+                    <span className="w-12 md:w-16 text-right">{endTimeStr}</span>
+                  </div>
+
+                  <div className="relative h-10 md:h-12 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+                    {activityTimeline.map((segment, index) => {
+                      const timeStr = segment.time || '00:00';
+                      const startMinutes = getMinutes(timeStr);
+                      
+                      // Calculate position relative to the dynamic range
+                      const left = rangeDuration > 0 ? ((startMinutes - minMinutes) / rangeDuration) * 100 : 0;
+                      const width = rangeDuration > 0 ? ((segment.duration || 0) / rangeDuration) * 100 : 100;
+
+                      return (
+                        <div
+                          key={index}
+                          className={`absolute top-0 h-full ${segment.status === 'active' ? 'bg-green-500 dark:bg-green-400' : 'bg-red-400 dark:bg-red-500'}`}
+                          style={{ left: `${Math.max(0, left)}%`, width: `${Math.min(100 - left, width)}%` }}
+                          title={`${timeStr} - ${segment.status} (${segment.duration || 0}m)`}
+                        />
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
       </div>
