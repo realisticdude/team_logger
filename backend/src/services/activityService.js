@@ -64,9 +64,31 @@ export const getActivityToday = async (userId) => {
     const timeline = [];
     let currentSegment = null;
 
-    heartbeats.forEach(hb => {
+    for (let i = 0; i < heartbeats.length; i++) {
+      const hb = heartbeats[i];
       const time = new Date(hb.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
       
+      // Check for gap between heartbeats (each heartbeat is ~30s)
+      if (i > 0) {
+        const prevTimestamp = new Date(heartbeats[i - 1].timestamp);
+        const currentTimestamp = new Date(hb.timestamp);
+        const gapMinutes = (currentTimestamp - prevTimestamp) / (1000 * 60);
+        
+        // If gap is significant (> 2 minutes), insert an idle segment
+        if (gapMinutes > 2) {
+          if (currentSegment) {
+            timeline.push(currentSegment);
+          }
+          timeline.push({
+            time: new Date(prevTimestamp.getTime() + 30000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            status: 'idle',
+            duration: Math.round(gapMinutes - 0.5)
+          });
+          currentSegment = { time, status: hb.status, duration: 0.5 };
+          continue;
+        }
+      }
+
       if (!currentSegment || currentSegment.status !== hb.status) {
         if (currentSegment) {
           timeline.push(currentSegment);
@@ -75,13 +97,21 @@ export const getActivityToday = async (userId) => {
       } else {
         currentSegment.duration += 0.5;
       }
-    });
+    }
     if (currentSegment) timeline.push(currentSegment);
 
+    // Re-calculate active and idle minutes from the final timeline to ensure consistency
+    const totalActiveMinutes = timeline.filter(s => s.status === 'active').reduce((sum, s) => sum + s.duration, 0);
+    const totalIdleMinutes = timeline.filter(s => s.status === 'idle').reduce((sum, s) => sum + s.duration, 0);
+    
+    // Total tracked time is everything recorded today (active + explicit idle gaps)
+    const finalTotalMinutes = totalActiveMinutes + totalIdleMinutes;
+    const finalProductivity = finalTotalMinutes > 0 ? Math.round((totalActiveMinutes / finalTotalMinutes) * 100) : 0;
+
     return {
-      timeTracked: activeMinutes,
-      productivity,
-      timeline,
+      timeTracked: Math.round(totalActiveMinutes),
+      productivity: finalProductivity,
+      timeline: timeline.map(s => ({ ...s, duration: Math.round(s.duration) })),
     };
   }
 
