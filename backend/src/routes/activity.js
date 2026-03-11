@@ -6,7 +6,8 @@ const router = Router();
 
 router.post('/heartbeat', authenticate, async (req, res, next) => {
   try {
-    await recordHeartbeat(req.user.sub);
+    const { status = 'active' } = req.body;
+    await recordHeartbeat(req.user.sub, status);
     res.status(200).json({ message: 'Heartbeat recorded' });
   } catch (err) {
     next(err);

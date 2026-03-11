@@ -8,6 +8,8 @@ export default function UserDashboard() {
   const { user: authUser } = useAuth();
   const [timeFilter, setTimeFilter] = useState('today');
   const [screenshots, setScreenshots] = useState([]);
+  const [metrics, setMetrics] = useState({ todayTime: 0, productivity: 0 });
+  const [activityTimeline, setActivityTimeline] = useState([]);
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
 
@@ -16,32 +18,77 @@ export default function UserDashboard() {
       try {
         const baseUrl = import.meta.env.VITE_API_URL || 'https://team-logger.onrender.com';
         const token = localStorage.getItem('team-logger-token');
-        if (!token) {
-          setError('You must be logged in to view screenshots.');
-          return;
-        }
+        if (!token) return;
 
-        const res = await fetch(`${baseUrl}/api/screenshots/me?days=${timeFilter === 'today' ? 1 : 7}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+        const res = await fetch(`${baseUrl}/api/screenshots/me?days=7`, {
+          headers: { 'Authorization': `Bearer ${token}` },
         });
 
-        if (!res.ok) {
-          throw new Error('Failed to fetch screenshots. Please try again later.');
+        if (res.ok) {
+          const data = await res.json();
+          setScreenshots(data);
         }
-
-        const data = await res.json();
-        setScreenshots(data);
       } catch (err) {
         setError(err.message);
       }
     };
 
-    fetchScreenshots();
-  }, [timeFilter]);
+    const fetchActivityData = async () => {
+      try {
+        const baseUrl = import.meta.env.VITE_API_URL || 'https://team-logger.onrender.com';
+        const token = localStorage.getItem('team-logger-token');
+        if (!token || !authUser?.id) return;
 
-  const activityTimeline = [];
+        // Fetch metrics
+        const mRes = await fetch(`${baseUrl}/api/users/${authUser.id}/metrics`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (mRes.ok) {
+          const mData = await mRes.json();
+          setMetrics({ todayTime: mData.todayTime, productivity: mData.productivity });
+        }
+
+        // Fetch activity timeline
+        const aRes = await fetch(`${baseUrl}/api/users/${authUser.id}/activity`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (aRes.ok) {
+          const aData = await aRes.json();
+          setActivityTimeline(Array.isArray(aData) ? aData : []);
+        }
+      } catch (err) {
+        console.error('Failed to fetch activity data:', err);
+      }
+    };
+
+    fetchScreenshots();
+    fetchActivityData();
+    
+    // Refresh activity every minute
+    const interval = setInterval(fetchActivityData, 60000);
+    return () => clearInterval(interval);
+  }, [authUser?.id]);
+
+  const filteredScreenshots = useMemo(() => {
+    if (!screenshots) return [];
+    
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    
+    if (timeFilter === 'today') {
+      return screenshots.filter(s => {
+        const d = new Date(s.timestamp).getTime();
+        return d >= startOfToday;
+      });
+    } else {
+      // Last 7 days
+      const sevenDaysAgo = now.getTime() - (7 * 24 * 60 * 60 * 1000);
+      return screenshots.filter(s => {
+        const d = new Date(s.timestamp).getTime();
+        return d >= sevenDaysAgo;
+      });
+    }
+  }, [screenshots, timeFilter]);
 
   const isActive = authUser?.status === 'active';
 
@@ -91,7 +138,7 @@ export default function UserDashboard() {
               <p className="text-sm text-gray-500 dark:text-gray-400">Time Today</p>
             </div>
             <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">
-              {formatTime(authUser?.todayTime ?? 0)}
+              {formatTime(metrics.todayTime ?? 0)}
             </p>
           </div>
 
@@ -103,17 +150,17 @@ export default function UserDashboard() {
               <p className="text-sm text-gray-500 dark:text-gray-400">Productivity</p>
             </div>
             <div className="flex items-baseline gap-2">
-              <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{(authUser?.productivity ?? 0)}%</p>
+              <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{(metrics.productivity ?? 0)}%</p>
               <div className="flex-1 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden max-w-[80px]">
                 <div
                   className={`h-full rounded-full ${
-                    (authUser?.productivity ?? 0) >= 80
+                    (metrics.productivity ?? 0) >= 80
                       ? 'bg-green-500 dark:bg-green-400'
-                      : (authUser?.productivity ?? 0) >= 60
+                      : (metrics.productivity ?? 0) >= 60
                       ? 'bg-yellow-500 dark:bg-yellow-400'
                       : 'bg-red-500 dark:bg-red-400'
                   }`}
-                  style={{ width: `${(authUser?.productivity ?? 0)}%` }}
+                  style={{ width: `${(metrics.productivity ?? 0)}%` }}
                 />
               </div>
             </div>
@@ -126,7 +173,10 @@ export default function UserDashboard() {
               </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">Screenshots</p>
             </div>
-            <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{screenshots.length}</p>
+            <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{filteredScreenshots.length}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {timeFilter === 'today' ? 'Today' : 'Last 7 days'}
+            </p>
           </div>
         </div>
       </div>
@@ -207,7 +257,7 @@ export default function UserDashboard() {
           </div>
         </div>
 
-        {screenshots.length === 0 ? (
+        {filteredScreenshots.length === 0 ? (
           <div className="text-center py-8 md:py-12">
             <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
               <Calendar size={24} className="text-gray-400 dark:text-gray-500 md:w-8 md:h-8" />
@@ -219,7 +269,7 @@ export default function UserDashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-          {screenshots.map((screenshot) => (
+          {filteredScreenshots.map((screenshot) => (
             <div key={screenshot.id} className="group relative cursor-pointer" onClick={() => setSelectedImage(screenshot.image_url)}>
               <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
                 <img

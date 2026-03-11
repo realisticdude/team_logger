@@ -48,20 +48,28 @@ export default function AdminDashboard() {
         if (!res.ok) return;
         const data = await res.json();
         const mapped = Array.isArray(data)
-          ? data.map((u) => ({
-              id: u.id,
-              name: u.name || '',
-              email: u.email || '',
-              status: u.status || 'offline',
-              todayTime: 0,
-              productivity: 0,
-              avatar: (u.name || '')
-                .split(' ')
-                .filter(Boolean)
-                .map((n) => n[0])
-                .join('')
-                .toUpperCase(),
-            }))
+          ? data.map((u) => {
+              // Status is 'online' or 'idle' from backend, map to 'online' or 'offline' for UI
+              // If last_seen is more than 5 minutes ago, consider them offline
+              const lastSeen = u.last_seen ? new Date(u.last_seen) : null;
+              const isRecent = lastSeen && (new Date() - lastSeen) < 5 * 60 * 1000;
+              const status = isRecent ? (u.status === 'idle' ? 'idle' : 'online') : 'offline';
+
+              return {
+                id: u.id,
+                name: u.name || '',
+                email: u.email || '',
+                status,
+                todayTime: 0, // Will be fetched per user or calculated
+                productivity: 0,
+                avatar: (u.name || '')
+                  .split(' ')
+                  .filter(Boolean)
+                  .map((n) => n[0])
+                  .join('')
+                  .toUpperCase(),
+              };
+            })
           : [];
         setUsers(mapped);
       } catch {}
@@ -72,11 +80,32 @@ export default function AdminDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    const fetchAllMetrics = async () => {
+      const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
+      const token = localStorage.getItem('team-logger-token') || localStorage.getItem('token') || '';
+      
+      const updatedUsers = await Promise.all(users.map(async (u) => {
+        try {
+          const res = await fetch(`${baseUrl}/api/users/${u.id}/metrics`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const m = await res.json();
+            return { ...u, todayTime: m.todayTime, productivity: m.productivity };
+          }
+        } catch (e) {}
+        return u;
+      }));
+      
+      // Only update if metrics actually changed to avoid re-renders
+      setUsers(updatedUsers);
+    };
+
+    if (users.length > 0) {
+      fetchAllMetrics();
+    }
+  }, [users.length]); // Only fetch when user list changes, or we can use a separate interval
 
   const handleAddUser = async () => {
     if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim() || !newUserRole.trim()) return;

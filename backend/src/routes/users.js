@@ -7,8 +7,15 @@ const router = Router();
 
 router.get('/', authenticate, requireRole('admin'), async (req, res, next) => {
   try {
-    const { data, error } = await supabase.from('users').select('id,email,name,role').order('name', { ascending: true });
+    const { data, error } = await supabase
+      .from('users')
+      .select('id,email,name,role,status,last_seen')
+      .order('name', { ascending: true });
     if (error) throw error;
+    
+    // For each user, we could calculate metrics, but to keep it fast, 
+    // we'll return the base data and let the frontend fetch details if needed.
+    // However, for the dashboard list, we can add a placeholder or simple metrics.
     res.json(data);
   } catch (err) {
     next(err);
@@ -57,7 +64,16 @@ router.get('/:id/metrics', authenticate, async (req, res, next) => {
     if (req.user.role !== 'admin' && req.user.sub !== id) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    const metrics = { todayTime: 0, productivity: 0, screenshotsCount: 0 };
+    
+    const { getActivityToday } = await import('../services/activityService.js');
+    const { data: screenshots } = await supabase.from('screenshots').select('id').eq('user_id', id);
+    const activity = await getActivityToday(id);
+
+    const metrics = { 
+      todayTime: activity.timeTracked, 
+      productivity: activity.productivity, 
+      screenshotsCount: screenshots?.length || 0 
+    };
     res.json(metrics);
   } catch (err) {
     next(err);
@@ -70,7 +86,10 @@ router.get('/:id/activity', authenticate, async (req, res, next) => {
     if (req.user.role !== 'admin' && req.user.sub !== id) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    res.json([]);
+    
+    const { getActivityToday } = await import('../services/activityService.js');
+    const activity = await getActivityToday(id);
+    res.json(activity.timeline);
   } catch (err) {
     next(err);
   }

@@ -42,7 +42,7 @@ export default function UserDetail() {
         };
 
         const fetchScreenshots = async () => {
-          const r = await fetch(`${baseUrl}/api/screenshots/user/${userId}`, {
+          const r = await fetch(`${baseUrl}/api/screenshots/user/${userId}?days=7`, {
             headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
           });
           if (r.ok) {
@@ -57,6 +57,27 @@ export default function UserDetail() {
     };
     loadUser();
   }, [userId]);
+
+  const filteredScreenshots = useMemo(() => {
+    if (!screenshots) return [];
+    
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    
+    if (timeFilter === 'today') {
+      return screenshots.filter(s => {
+        const d = new Date(s.timestamp).getTime();
+        return d >= startOfToday;
+      });
+    } else {
+      // Last 7 days
+      const sevenDaysAgo = now.getTime() - (7 * 24 * 60 * 60 * 1000);
+      return screenshots.filter(s => {
+        const d = new Date(s.timestamp).getTime();
+        return d >= sevenDaysAgo;
+      });
+    }
+  }, [screenshots, timeFilter]);
 
   const isActive = user?.status === 'active';
 
@@ -139,8 +160,10 @@ export default function UserDetail() {
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400">Screenshots</p>
           </div>
-          <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{screenshots.length}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Last 7 days</p>
+          <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{filteredScreenshots.length}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {timeFilter === 'today' ? 'Today' : 'Last 7 days'}
+          </p>
         </div>
       </div>
 
@@ -221,7 +244,7 @@ export default function UserDetail() {
           </div>
         </div>
 
-        {screenshots.length === 0 ? (
+        {filteredScreenshots.length === 0 ? (
           <div className="text-center py-8 md:py-12">
             <div className="w-12 h-12 md:w-16 md:h-16 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
               <Calendar size={24} className="text-gray-400 dark:text-gray-500 md:w-8 md:h-8" />
@@ -233,7 +256,7 @@ export default function UserDetail() {
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-            {screenshots.slice(0, 48).map((screenshot) => (
+            {filteredScreenshots.slice(0, 48).map((screenshot) => (
               <div key={screenshot.id} className="group relative">
                 <div className="aspect-video bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600">
                   <img
