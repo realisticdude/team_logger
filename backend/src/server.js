@@ -65,7 +65,8 @@ app.get('/api/create-admin', async (req, res) => {
         {
           name: 'Admin',
           email: 'admin@teamlogger.com',
-          password_hash: hashedPassword
+          password_hash: hashedPassword,
+          last_seen: null
         }
       ])
       .select();
@@ -96,7 +97,8 @@ app.get('/api/create-user', async (req, res) => {
           name: 'Demo User',
           email: 'user@teamlogger.com',
           password_hash: hashed,
-          role: 'user'
+          role: 'user',
+          last_seen: null
         }
       ])
       .select();

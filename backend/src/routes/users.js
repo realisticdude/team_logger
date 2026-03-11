@@ -45,7 +45,7 @@ router.post('/', authenticate, requireRole('admin'), async (req, res, next) => {
     const { email, name, role = 'user', password } = req.body;
     if (!email || !name || !password) return res.status(400).json({ error: 'Missing fields' });
     const hash = await bcrypt.hash(password, 10);
-    const { data, error } = await supabase.from('users').insert({ email, name, role, password_hash: hash }).select('id,email,name,role').single();
+    const { data, error } = await supabase.from('users').insert({ email, name, role, password_hash: hash, last_seen: null }).select('id,email,name,role').single();
     if (error) throw error;
     res.status(201).json(data);
   } catch (err) {
