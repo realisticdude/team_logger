@@ -67,6 +67,7 @@ function createWindow() {
         currentToken = token;
 
         if (token) {
+          console.log('Starting service with token:', token.substring(0, 20) + '...');
           screenshotService.startScreenshotService(token);
         } else {
           screenshotService.stopScreenshotService();
@@ -121,7 +122,9 @@ app.on('activate', () => {
 
 // Handle manual token update if future communication is added
 ipcMain.on('set-token', (event, token) => {
+  console.log('Received set-token event');
   if (token) {
+    console.log('Starting service with token from event:', token.substring(0, 20) + '...');
     screenshotService.startScreenshotService(token);
   } else {
     screenshotService.stopScreenshotService();

@@ -3,15 +3,35 @@ const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
+const { powerMonitor } = require('electron');
 
 let cycleTimeout = null;
 let scheduledTimeouts = [];
+let heartbeatInterval = null;
 let authToken = null;
 const BACKEND_URL = 'https://team-logger.onrender.com';
 const CYCLE_DURATION = 15 * 60 * 1000; // 15 minutes
 const SCREENSHOTS_PER_CYCLE = 2;
+const HEARTBEAT_INTERVAL_MS = 30 * 1000; // 30 seconds
+const IDLE_THRESHOLD_SECONDS = 5 * 60; // 5 minutes
 
 console.log('Backend URL set to:', BACKEND_URL);
+
+const sendHeartbeat = async () => {
+  if (!authToken) return;
+  
+  try {
+    const idleTime = powerMonitor.getSystemIdleTime();
+    const status = idleTime > IDLE_THRESHOLD_SECONDS ? 'idle' : 'active';
+    
+    console.log(`Sending heartbeat (status: ${status}, idle: ${idleTime}s)`);
+    await axios.post(`${BACKEND_URL}/api/activity/heartbeat`, { status }, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+  } catch (error) {
+    console.error('Heartbeat failed:', error.message);
+  }
+};
 
 const captureAndUpload = async () => {
   if (!authToken) {
@@ -82,12 +102,21 @@ const startScreenshotService = (token) => {
 
   console.log('Starting screenshot service (Randomized: 2 screenshots per 15 mins)');
   scheduleRandomCycle();
+
+  // Start activity heartbeats
+  sendHeartbeat(); // initial
+  heartbeatInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
 };
 
 const stopScreenshotService = () => {
   if (cycleTimeout) {
     clearTimeout(cycleTimeout);
     cycleTimeout = null;
+  }
+
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval);
+    heartbeatInterval = null;
   }
 
   scheduledTimeouts.forEach(t => clearTimeout(t));
