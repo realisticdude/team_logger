@@ -92,8 +92,16 @@ export default function UserDashboard() {
 
   const isActive = authUser?.status === 'active';
 
-  const activeTime = activityTimeline.filter((s) => s.status === 'active').reduce((sum, s) => sum + s.duration, 0);
-  const idleTime = activityTimeline.filter((s) => s.status === 'idle').reduce((sum, s) => sum + s.duration, 0);
+  const activeTime = activityTimeline.filter((s) => s.status === 'active').reduce((sum, s) => sum + (s.duration || 0), 0);
+  const idleTime = activityTimeline.filter((s) => s.status === 'idle').reduce((sum, s) => sum + (s.duration || 0), 0);
+  
+  // Calculate display idle time based on productivity if explicit idle segments don't exist
+  // This ensures summary matches the metrics even if gaps weren't explicitly filled
+  const displayIdleTime = idleTime > 0 
+    ? idleTime 
+    : (metrics.productivity < 100 && metrics.todayTime > 0 
+        ? Math.round((metrics.todayTime / (metrics.productivity / 100)) - metrics.todayTime) 
+        : 0);
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
@@ -191,7 +199,7 @@ export default function UserDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 md:w-4 md:h-4 bg-red-400 dark:bg-red-500 rounded"></div>
-            <span className="text-gray-600 dark:text-gray-400">Idle: {formatTime(idleTime)}</span>
+            <span className="text-gray-600 dark:text-gray-400">Idle: {formatTime(displayIdleTime)}</span>
           </div>
         </div>
 
@@ -207,38 +215,46 @@ export default function UserDashboard() {
                 return h * 60 + m;
               };
 
-              // Determine the range based on actual activity
-              const activityMinutes = activityTimeline.map(s => getMinutes(s.time || '00:00'));
-              const minMinutes = Math.min(...activityMinutes);
-              const lastSegment = activityTimeline[activityTimeline.length - 1];
-              const maxMinutes = getMinutes(lastSegment.time || '00:00') + (lastSegment.duration || 0);
-              
-              const rangeDuration = maxMinutes - minMinutes;
-              const startTimeStr = activityTimeline[0].time;
-              const endTimeStr = `${Math.floor(maxMinutes / 60).toString().padStart(2, '0')}:${(maxMinutes % 60).toString().padStart(2, '0')}`;
+              // Fixed range: 09:00 to 00:00 (midnight)
+              const dayStart = 9 * 60;
+              const dayEnd = 24 * 60;
+              const dayDuration = dayEnd - dayStart;
 
               return (
                 <>
-                  <div className="flex text-xs text-gray-400 dark:text-gray-500 mb-1">
-                    <span className="w-12 md:w-16">{startTimeStr}</span>
-                    <span className="flex-1 text-center">Activity Range</span>
-                    <span className="w-12 md:w-16 text-right">{endTimeStr}</span>
+                  <div className="flex text-[10px] md:text-xs text-gray-400 dark:text-gray-500 mb-1 justify-between px-1">
+                    <span>09:00</span>
+                    <span>12:00</span>
+                    <span>15:00</span>
+                    <span>18:00</span>
+                    <span>21:00</span>
+                    <span>00:00</span>
                   </div>
 
-                  <div className="relative h-10 md:h-12 bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+                  <div className="relative h-10 md:h-12 bg-red-400/20 dark:bg-red-500/10 rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700">
+                    {/* Render idle background for the entire range */}
+                    <div className="absolute inset-0 bg-red-400 dark:bg-red-500 opacity-20" />
+
                     {activityTimeline.map((segment, index) => {
                       const timeStr = segment.time || '00:00';
                       const startMinutes = getMinutes(timeStr);
                       
-                      // Calculate position relative to the dynamic range
-                      const left = rangeDuration > 0 ? ((startMinutes - minMinutes) / rangeDuration) * 100 : 0;
-                      const width = rangeDuration > 0 ? ((segment.duration || 0) / rangeDuration) * 100 : 100;
+                      // Calculate position relative to the fixed range
+                      const left = ((startMinutes - dayStart) / dayDuration) * 100;
+                      const width = ((segment.duration || 0) / dayDuration) * 100;
+
+                      // Only render if within 09:00 - 24:00
+                      if (left + width < 0 || left > 100) return null;
 
                       return (
                         <div
                           key={index}
                           className={`absolute top-0 h-full ${segment.status === 'active' ? 'bg-green-500 dark:bg-green-400' : 'bg-red-400 dark:bg-red-500'}`}
-                          style={{ left: `${Math.max(0, left)}%`, width: `${Math.min(100 - left, width)}%` }}
+                          style={{ 
+                            left: `${Math.max(0, left)}%`, 
+                            width: `${Math.min(100 - left, width)}%`,
+                            zIndex: segment.status === 'active' ? 2 : 1
+                          }}
                           title={`${timeStr} - ${segment.status} (${segment.duration || 0}m)`}
                         />
                       );
