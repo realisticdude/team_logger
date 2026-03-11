@@ -43,76 +43,12 @@ export default function AdminDashboard() {
   console.log('DEBUG: Current users state:', users);
   console.log('DEBUG: Filtered users:', filteredUsers);
 
-  useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
-        const token = localStorage.getItem('team-logger-token');
-        console.log('Fetching users from:', `${baseUrl}/api/users`);
-        const res = await fetch(`${baseUrl}/api/users`, {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-        
-        if (!res.ok) {
-          console.error('Fetch users failed:', res.status, res.statusText);
-          if (res.status === 401) {
-            console.log('Unauthorized. Clearing token and forcing re-login.');
-            localStorage.removeItem('team-logger-token');
-            window.location.reload(); // Force a reload to redirect to login
-          }
-          return;
-        }
-        
-        const data = await res.json();
-        console.log('DEBUG: Raw data received from backend:', data);
-        
-        if (!Array.isArray(data)) {
-          console.error('DEBUG: Data received is not an array:', data);
-          return;
-        }
-        
-        const mapped = data.map((u) => {
-          // Status mapping logic
-          const lastSeen = u.last_seen ? new Date(u.last_seen) : null;
-          const isRecent = lastSeen && (new Date() - lastSeen) < 5 * 60 * 1000;
-          const status = isRecent ? (u.status === 'idle' ? 'idle' : 'online') : 'offline';
-
-          return {
-            id: u.id,
-            name: u.name || 'Unknown',
-            email: u.email || 'No email',
-            status,
-            todayTime: 0,
-            productivity: 0,
-            avatar: (u.name || 'U')
-              .split(' ')
-              .filter(Boolean)
-              .map((n) => n[0])
-              .join('')
-              .toUpperCase(),
-          };
-        });
-        
-        console.log('DEBUG: Mapped users:', mapped);
-        setUsers(mapped);
-      } catch (err) {
-        console.error('DEBUG: Error loading users:', err);
-      }
-    };
-    loadUsers();
-
-    const interval = setInterval(loadUsers, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    const fetchAllMetrics = async () => {
-      const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
-      const token = localStorage.getItem('team-logger-token');
-      
-      const updatedUsers = await Promise.all(users.map(async (u) => {
+  const fetchAllMetrics = async (currentUsers) => {
+    const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
+    const token = localStorage.getItem('team-logger-token');
+    
+    try {
+      const updatedUsers = await Promise.all(currentUsers.map(async (u) => {
         try {
           const res = await fetch(`${baseUrl}/api/users/${u.id}/metrics`, {
             headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
@@ -125,14 +61,71 @@ export default function AdminDashboard() {
         return u;
       }));
       
-      // Only update if metrics actually changed to avoid re-renders
       setUsers(updatedUsers);
-    };
-
-    if (users.length > 0) {
-      fetchAllMetrics();
+    } catch (err) {
+      console.error('Error fetching all metrics:', err);
     }
-  }, [users.length]); // Only fetch when user list changes, or we can use a separate interval
+  };
+
+  const loadUsers = async () => {
+    try {
+      const baseUrl = (import.meta?.env?.VITE_API_URL) || 'https://team-logger.onrender.com';
+      const token = localStorage.getItem('team-logger-token');
+      const res = await fetch(`${baseUrl}/api/users`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      
+      if (!res.ok) {
+        if (res.status === 401) {
+          localStorage.removeItem('team-logger-token');
+          window.location.reload();
+        }
+        return;
+      }
+      
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+      
+      let mapped;
+      setUsers(prevUsers => {
+        mapped = data.map((u) => {
+          const lastSeen = u.last_seen ? new Date(u.last_seen) : null;
+          const isRecent = lastSeen && (new Date() - lastSeen) < 5 * 60 * 1000;
+          const status = isRecent ? (u.status === 'idle' ? 'idle' : 'online') : 'offline';
+          const existingUser = prevUsers.find(p => p.id === u.id);
+
+          return {
+            id: u.id,
+            name: u.name || 'Unknown',
+            email: u.email || 'No email',
+            status,
+            todayTime: existingUser?.todayTime || 0,
+            productivity: existingUser?.productivity || 0,
+            avatar: (u.name || 'U').split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase(),
+          };
+        });
+        return mapped;
+      });
+
+      // Fetch metrics for the newly loaded user list
+      if (mapped) {
+        await fetchAllMetrics(mapped);
+      }
+    } catch (err) {
+      console.error('Error loading users:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadUsers();
+
+    const interval = setInterval(loadUsers, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Removed the previous metrics effect to avoid redundant updates and dependencies issues
 
   const handleAddUser = async () => {
     if (!newUserName.trim() || !newUserEmail.trim() || !newUserPassword.trim() || !newUserRole.trim()) return;
@@ -159,37 +152,6 @@ export default function AdminDashboard() {
       }
       
       // Refresh the entire user list from the backend to ensure data consistency
-      const loadUsers = async () => {
-        try {
-          const res = await fetch(`${baseUrl}/api/users`, {
-            headers: {
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data)) {
-              const mapped = data.map((u) => {
-                const lastSeen = u.last_seen ? new Date(u.last_seen) : null;
-                const isRecent = lastSeen && (new Date() - lastSeen) < 5 * 60 * 1000;
-                const status = isRecent ? (u.status === 'idle' ? 'idle' : 'online') : 'offline';
-                return {
-                  id: u.id,
-                  name: u.name || 'Unknown',
-                  email: u.email || 'No email',
-                  status,
-                  todayTime: 0,
-                  productivity: 0,
-                  avatar: (u.name || 'U').split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase(),
-                };
-              });
-              setUsers(mapped);
-            }
-          }
-        } catch (err) {
-          console.error('Error refreshing users after add:', err);
-        }
-      };
       await loadUsers();
 
       setNewUserName('');
