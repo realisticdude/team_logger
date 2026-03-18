@@ -3,12 +3,18 @@ const axios = require('axios');
 const FormData = require('form-data');
 const fs = require('fs');
 const path = require('path');
-const { powerMonitor } = require('electron');
+const { powerMonitor, app } = require('electron');
 
 let cycleTimeout = null;
 let scheduledTimeouts = [];
 let heartbeatInterval = null;
 let authToken = null;
+
+// Use app.getPath('temp') for production safety
+const getScreenshotPath = (filename) => {
+  const baseDir = app.isPackaged ? app.getPath('temp') : __dirname;
+  return path.join(baseDir, filename);
+};
 const BACKEND_URL = 'https://team-logger.onrender.com';
 const CYCLE_DURATION = 15 * 60 * 1000; // 15 minutes
 const SCREENSHOTS_PER_CYCLE = 2;
@@ -40,19 +46,22 @@ const captureAndUpload = async () => {
   }
 
   const filename = `screenshot-${Date.now()}.png`;
-  const filepath = path.join(__dirname, filename);
+  const filepath = getScreenshotPath(filename);
 
   try {
-    console.log("Capturing screenshot:", filepath);
+    console.log("Starting screenshot capture...");
+    console.log("Target path:", filepath);
+    console.log("Directory exists:", fs.existsSync(path.dirname(filepath)));
+    
     await screenshot({ filename: filepath });
+    console.log("Screenshot captured successfully");
 
     const form = new FormData();
     form.append('screenshot', fs.createReadStream(filepath));
 
-    console.log("Uploading screenshot to Render backend:");
-    console.log(`${BACKEND_URL}/api/screenshots/upload`);
-    console.log("With token:", authToken ? `${authToken.substring(0, 10)}...` : 'null');
-
+    console.log("Uploading screenshot to Render backend...");
+    console.log("URL:", `${BACKEND_URL}/api/screenshots/upload`);
+    
     const response = await axios.post(`${BACKEND_URL}/api/screenshots/upload`, form, {
       headers: {
         ...form.getHeaders(),
@@ -62,15 +71,23 @@ const captureAndUpload = async () => {
 
     console.log('Upload success:', response.data);
   } catch (error) {
-    const errorMsg = error.response?.data?.error || error.response?.data || error.message;
-    console.error('Upload failed:', errorMsg);
-    if (error.response) {
-      console.error('Status:', error.response.status);
+    console.error('Screenshot process failed!');
+    if (error.code === 'ENOENT') {
+      console.error('File not found error (likely capture failed):', error.message);
+    } else if (error.response) {
+      console.error('API Error:', error.response.status, error.response.data);
+    } else {
+      console.error('General Error:', error.message);
+      if (error.stack) console.error(error.stack);
     }
   } finally {
     if (fs.existsSync(filepath)) {
-      fs.unlinkSync(filepath);
-      console.log("Local file deleted:", filepath);
+      try {
+        fs.unlinkSync(filepath);
+        console.log("Local file deleted:", filepath);
+      } catch (e) {
+        console.error("Failed to delete local file:", e.message);
+      }
     }
   }
 };
@@ -97,10 +114,14 @@ const scheduleRandomCycle = () => {
 const startScreenshotService = (token) => {
   // Always clear any existing service before starting
   stopScreenshotService();
-
   authToken = token;
 
   console.log('Starting screenshot service (Randomized: 2 screenshots per 15 mins)');
+  
+  // Trigger one screenshot immediately on start for verification in production
+  console.log('Triggering initial screenshot for verification...');
+  captureAndUpload();
+
   scheduleRandomCycle();
 
   // Start activity heartbeats

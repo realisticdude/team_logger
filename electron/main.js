@@ -49,12 +49,15 @@ function createWindow() {
     },
   });
 
-  const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-  const frontendUrl = isDev 
-    ? 'http://localhost:5173' 
-    : `file://${path.join(__dirname, '../frontend/dist/index.html')}`;
-
-  mainWindow.loadURL(frontendUrl);
+  const isDev = !app.isPackaged;
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173');
+  } else {
+    const indexPath = path.join(__dirname, '../frontend/dist/index.html');
+    console.log('Loading index.html from:', indexPath);
+    mainWindow.loadFile(indexPath);
+    mainWindow.webContents.openDevTools();
+  }
 
   // Poll localStorage for token to start screenshot service
   let currentToken = null;
