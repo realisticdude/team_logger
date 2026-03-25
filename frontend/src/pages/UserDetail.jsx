@@ -83,10 +83,13 @@ export default function UserDetail() {
 
   const activeTime = activity.filter((s) => s.status === 'active').reduce((sum, s) => sum + (s.duration || 0), 0);
   const idleTime = activity.filter((s) => s.status === 'idle').reduce((sum, s) => sum + (s.duration || 0), 0);
+  const totalTime = activeTime + idleTime;
 
-  // For summary consistency, if idleTime is reported as 0 but productivity is < 100, 
-  // we use the metrics to derive a more accurate idle time for the summary.
-  const displayIdleTime = idleTime > 0 ? idleTime : (metrics.productivity < 100 && metrics.todayTime > 0 ? Math.round((metrics.todayTime / (metrics.productivity / 100)) - metrics.todayTime) : 0);
+  const avatarContent = useMemo(() => {
+    if (!user) return '?';
+    if (user.role === 'admin') return <Shield size={24} />;
+    return (user.name || 'U').split(' ').filter(Boolean).map((n) => n[0]).join('').toUpperCase();
+  }, [user]);
 
   return (
     <div className="p-4 md:p-6 lg:p-8">
@@ -102,7 +105,7 @@ export default function UserDetail() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg md:text-xl font-medium flex-shrink-0">
-              {user?.avatar ?? '?'}
+              {avatarContent}
             </div>
             <div>
               <h1 className="text-xl md:text-2xl font-semibold text-gray-900 dark:text-white">{user?.name ?? 'Unknown User'}</h1>
@@ -126,15 +129,25 @@ export default function UserDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-4 md:mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-4 md:mb-6">
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
               <Clock className="text-blue-600 dark:text-blue-400" size={20} />
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Time Tracked Today</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Active Time</p>
           </div>
-          <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{formatTime(metrics.todayTime || 0)}</p>
+          <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{formatTime(activeTime)}</p>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center">
+              <Clock className="text-indigo-600 dark:text-indigo-400" size={20} />
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total Time</p>
+          </div>
+          <p className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-white">{formatTime(totalTime)}</p>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
@@ -181,7 +194,7 @@ export default function UserDetail() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 md:w-4 md:h-4 bg-red-400 dark:bg-red-500 rounded"></div>
-            <span className="text-gray-600 dark:text-gray-400">Idle: {formatTime(displayIdleTime)}</span>
+            <span className="text-gray-600 dark:text-gray-400">Idle: {formatTime(idleTime)}</span>
           </div>
         </div>
 
@@ -192,52 +205,85 @@ export default function UserDetail() {
         ) : (
           <div className="space-y-2">
             {(() => {
-              const getMinutes = (timeStr) => {
-                const [h, m] = timeStr.split(':').map(Number);
-                return h * 60 + m;
+              const getMinutes = (timeValue) => {
+                if (!timeValue) return 0;
+                // Handle legacy HH:mm format
+                if (typeof timeValue === 'string' && timeValue.includes(':') && !timeValue.includes('T') && !timeValue.includes('-')) {
+                  const [h, m] = timeValue.split(':').map(Number);
+                  return (h || 0) * 60 + (m || 0);
+                }
+                const date = new Date(timeValue);
+                if (isNaN(date.getTime())) return 0;
+                return date.getHours() * 60 + date.getMinutes();
               };
 
-              // Fixed range: 09:00 to 00:00 (midnight)
-              const dayStart = 9 * 60;
-              const dayEnd = 24 * 60;
-              const dayDuration = dayEnd - dayStart;
+              const formatMinutes = (totalMinutes) => {
+                const h = Math.floor(totalMinutes / 60) % 24;
+                const m = totalMinutes % 60;
+                return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+              };
+
+              // Use all activity returned by the "today" API
+              const timelineData = activity;
+
+              // Determine dynamic start time from activity data
+              const firstSegmentMinutes = getMinutes(timelineData[0].time);
+              // Add 10 mins buffer
+              const dayStart = Math.max(0, firstSegmentMinutes - 10);
+              
+              // End time is either the last activity end or current time
+              const lastSegment = timelineData[timelineData.length - 1];
+              const lastActivityEnd = getMinutes(lastSegment.time) + (lastSegment.duration || 0);
+              const now = new Date();
+              const currentMinutes = now.getHours() * 60 + now.getMinutes();
+              const dayEnd = Math.max(lastActivityEnd, currentMinutes) + 10;
+              
+              const dayDuration = Math.max(1, dayEnd - dayStart);
+
+              // Generate dynamic labels every 2-3 hours
+              const labels = [];
+              const labelInterval = dayDuration > 600 ? 180 : 120;
+              for (let t = dayStart; t <= dayEnd; t += labelInterval) {
+                labels.push(formatMinutes(t));
+              }
+              if (labels.length > 0 && dayEnd - getMinutes(labels[labels.length - 1]) > 30) {
+                labels.push(formatMinutes(dayEnd));
+              }
 
               return (
                 <>
-                  <div className="flex text-[10px] md:text-xs text-gray-400 dark:text-gray-500 mb-1 justify-between px-1">
-                    <span>09:00</span>
-                    <span>12:00</span>
-                    <span>15:00</span>
-                    <span>18:00</span>
-                    <span>21:00</span>
-                    <span>00:00</span>
+                  <div className="flex text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mb-1 justify-between px-1 font-medium">
+                    {labels.map((label, i) => (
+                      <span key={i}>{label}</span>
+                    ))}
                   </div>
 
-                  <div className="relative h-10 md:h-12 bg-red-400/20 dark:bg-red-500/10 rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700">
+                  <div className="relative h-10 md:h-12 bg-red-400/10 dark:bg-red-500/5 rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700">
                     {/* Render idle background for the entire range */}
                     <div className="absolute inset-0 bg-red-400 dark:bg-red-500 opacity-20" />
                     
-                    {activity.map((segment, index) => {
-                      const timeStr = segment.time || '00:00';
-                      const startMinutes = getMinutes(timeStr);
-                      
-                      // Calculate position relative to the fixed range
+                    {timelineData.map((segment, index) => {
+                      const startMinutes = getMinutes(segment.time);
                       const left = ((startMinutes - dayStart) / dayDuration) * 100;
                       const width = ((segment.duration || 0) / dayDuration) * 100;
 
-                      // Only render if within 09:00 - 24:00
-                      if (left + width < 0 || left > 100) return null;
+                      // Skip invalid segments
+                      if (isNaN(left) || isNaN(width) || width <= 0) return null;
+
+                      const displayTime = segment.time && segment.time.includes('T') 
+                        ? new Date(segment.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+                        : segment.time;
 
                       return (
                         <div
                           key={index}
-                          className={`absolute top-0 h-full ${segment.status === 'active' ? 'bg-green-500 dark:bg-green-400' : 'bg-red-400 dark:bg-red-500'}`}
+                          className={`absolute top-0 h-full transition-all duration-300 ${segment.status === 'active' ? 'bg-green-500 dark:bg-green-400' : 'bg-red-400 dark:bg-red-500'}`}
                           style={{ 
-                            left: `${Math.max(0, left)}%`, 
-                            width: `${Math.min(100 - left, width)}%`,
+                            left: `${Math.max(0, Math.min(100, left))}%`, 
+                            width: `${Math.max(0, Math.min(100 - left, width))}%`,
                             zIndex: segment.status === 'active' ? 2 : 1
                           }}
-                          title={`${timeStr} - ${segment.status} (${segment.duration || 0}m)`}
+                          title={`${displayTime} - ${segment.status} (${segment.duration || 0}m)`}
                         />
                       );
                     })}
