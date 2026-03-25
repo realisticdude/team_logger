@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
-import { ArrowLeft, Clock, Activity, Calendar } from 'lucide-react';
+import { ArrowLeft, Clock, Activity, Calendar, Shield } from 'lucide-react';
 import { formatTime } from '../services/api.js';
 import { Button } from '../components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/tabs';
@@ -102,7 +102,7 @@ export default function UserDetail() {
       </Link>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 md:p-6 mb-4 md:mb-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="flex items-center gap-3 md:gap-4">
             <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-lg md:text-xl font-medium flex-shrink-0">
               {avatarContent}
@@ -112,20 +112,6 @@ export default function UserDetail() {
               <p className="text-sm md:text-base text-gray-500 dark:text-gray-400">{user?.email ?? '—'}</p>
             </div>
           </div>
-          <span
-            className={`inline-flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-full font-medium text-sm ${
-              isActive
-                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
-            }`}
-          >
-            <span
-              className={`w-2 md:w-2.5 h-2 md:h-2.5 rounded-full ${
-                isActive ? 'bg-green-500 dark:bg-green-400' : 'bg-gray-400 dark:bg-gray-500'
-              }`}
-            />
-            {isActive ? 'Active Now' : 'Offline'}
-          </span>
         </div>
       </div>
 
@@ -210,12 +196,17 @@ export default function UserDetail() {
                 // Handle legacy HH:mm format
                 if (typeof timeValue === 'string' && timeValue.includes(':') && !timeValue.includes('T') && !timeValue.includes('-')) {
                   const [h, m] = timeValue.split(':').map(Number);
-                  return (h || 0) * 60 + (m || 0);
+                  // Legacy values were often generated on a UTC server; convert them to local browser time.
+                  const utcDate = new Date();
+                  utcDate.setUTCHours(h || 0, m || 0, 0, 0);
+                  return utcDate.getHours() * 60 + utcDate.getMinutes();
                 }
                 const date = new Date(timeValue);
                 if (isNaN(date.getTime())) return 0;
                 return date.getHours() * 60 + date.getMinutes();
               };
+
+              const getSegmentMinutes = (segment) => getMinutes(segment?.timestamp || segment?.time);
 
               const formatMinutes = (totalMinutes) => {
                 const h = Math.floor(totalMinutes / 60) % 24;
@@ -227,13 +218,13 @@ export default function UserDetail() {
               const timelineData = activity;
 
               // Determine dynamic start time from activity data
-              const firstSegmentMinutes = getMinutes(timelineData[0].time);
+              const firstSegmentMinutes = getSegmentMinutes(timelineData[0]);
               // Add 10 mins buffer
               const dayStart = Math.max(0, firstSegmentMinutes - 10);
               
               // End time is either the last activity end or current time
               const lastSegment = timelineData[timelineData.length - 1];
-              const lastActivityEnd = getMinutes(lastSegment.time) + (lastSegment.duration || 0);
+              const lastActivityEnd = getSegmentMinutes(lastSegment) + (lastSegment.duration || 0);
               const now = new Date();
               const currentMinutes = now.getHours() * 60 + now.getMinutes();
               const dayEnd = Math.max(lastActivityEnd, currentMinutes) + 10;
@@ -244,17 +235,17 @@ export default function UserDetail() {
               const labels = [];
               const labelInterval = dayDuration > 600 ? 180 : 120;
               for (let t = dayStart; t <= dayEnd; t += labelInterval) {
-                labels.push(formatMinutes(t));
+                labels.push(t);
               }
-              if (labels.length > 0 && dayEnd - getMinutes(labels[labels.length - 1]) > 30) {
-                labels.push(formatMinutes(dayEnd));
+              if (labels.length > 0 && dayEnd - labels[labels.length - 1] > 30) {
+                labels.push(dayEnd);
               }
 
               return (
                 <>
                   <div className="flex text-[10px] md:text-xs text-gray-500 dark:text-gray-400 mb-1 justify-between px-1 font-medium">
                     {labels.map((label, i) => (
-                      <span key={i}>{label}</span>
+                      <span key={i}>{formatMinutes(label)}</span>
                     ))}
                   </div>
 
@@ -263,15 +254,15 @@ export default function UserDetail() {
                     <div className="absolute inset-0 bg-red-400 dark:bg-red-500 opacity-20" />
                     
                     {timelineData.map((segment, index) => {
-                      const startMinutes = getMinutes(segment.time);
+                      const startMinutes = getSegmentMinutes(segment);
                       const left = ((startMinutes - dayStart) / dayDuration) * 100;
                       const width = ((segment.duration || 0) / dayDuration) * 100;
 
                       // Skip invalid segments
                       if (isNaN(left) || isNaN(width) || width <= 0) return null;
 
-                      const displayTime = segment.time && segment.time.includes('T') 
-                        ? new Date(segment.time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
+                      const displayTime = segment.timestamp
+                        ? new Date(segment.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
                         : segment.time;
 
                       return (

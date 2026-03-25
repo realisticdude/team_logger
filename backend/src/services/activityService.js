@@ -2,6 +2,8 @@ import { supabase } from '../config/supabase.js';
 
 const MINUTES_PER_SCREENSHOT = 10;
 const IDLE_THRESHOLD_MINUTES = 15;
+const toHourMinute = (date) =>
+  date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 
 // Helper to format minutes into hours and minutes
 const formatTime = (minutes) => {
@@ -66,7 +68,8 @@ export const getActivityToday = async (userId) => {
 
     for (let i = 0; i < heartbeats.length; i++) {
       const hb = heartbeats[i];
-      const time = new Date(hb.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+      const hbDate = new Date(hb.timestamp);
+      const time = toHourMinute(hbDate);
       
       // Check for gap between heartbeats (each heartbeat is ~30s)
       if (i > 0) {
@@ -79,12 +82,14 @@ export const getActivityToday = async (userId) => {
           if (currentSegment) {
             timeline.push(currentSegment);
           }
+          const idleStartDate = new Date(prevTimestamp.getTime() + 30000);
           timeline.push({
-            time: new Date(prevTimestamp.getTime() + 30000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+            time: toHourMinute(idleStartDate),
+            timestamp: idleStartDate.toISOString(),
             status: 'idle',
             duration: Math.round(gapMinutes - 0.5)
           });
-          currentSegment = { time, status: hb.status, duration: 0.5 };
+          currentSegment = { time, timestamp: hbDate.toISOString(), status: hb.status, duration: 0.5 };
           continue;
         }
       }
@@ -93,7 +98,7 @@ export const getActivityToday = async (userId) => {
         if (currentSegment) {
           timeline.push(currentSegment);
         }
-        currentSegment = { time, status: hb.status, duration: 0.5 };
+        currentSegment = { time, timestamp: hbDate.toISOString(), status: hb.status, duration: 0.5 };
       } else {
         currentSegment.duration += 0.5;
       }
@@ -135,8 +140,10 @@ export const getActivityToday = async (userId) => {
 
   const timeline = [];
   if (screenshots.length > 0) {
+    const firstShotDate = new Date(screenshots[0].created_at);
     timeline.push({
-      time: new Date(screenshots[0].created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      time: toHourMinute(firstShotDate),
+      timestamp: firstShotDate.toISOString(),
       status: 'active',
       duration: Math.round(MINUTES_PER_SCREENSHOT_RANDOM)
     });
@@ -147,15 +154,18 @@ export const getActivityToday = async (userId) => {
       const gapMinutes = (currentTimestamp - prevTimestamp) / (1000 * 60);
 
       if (gapMinutes > IDLE_THRESHOLD_MINUTES) {
+        const idleStartDate = new Date(prevTimestamp.getTime() + 60000);
         timeline.push({
-          time: prevTimestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          time: toHourMinute(idleStartDate),
+          timestamp: idleStartDate.toISOString(),
           status: 'idle',
           duration: Math.round(gapMinutes)
         });
       }
 
       timeline.push({
-        time: currentTimestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        time: toHourMinute(currentTimestamp),
+        timestamp: currentTimestamp.toISOString(),
         status: 'active',
         duration: Math.round(MINUTES_PER_SCREENSHOT_RANDOM)
       });
